@@ -1,0 +1,279 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              Int              @id @default(autoincrement())
+  name            String
+  email           String           @unique
+  role            String           // e.g. "employee", "section_officer", "secretary", "auditor", "hr"
+  personaType     String           // "officer", "teamlead", "secretary", "auditor", "hr", "reform"
+  departmentId    Int?
+  department      Department?      @relation(fields: [departmentId], references: [id])
+  designation     String
+  joinedDate      DateTime         @default(now())
+  avatarUrl       String?
+  
+  // Relations
+  createdFiles    File[]           @relation("CreatedBy")
+  heldFiles       File[]           @relation("CurrentHolder")
+  sentMovements   FileMovement[]   @relation("Sender")
+  receivedMovements FileMovement[] @relation("Receiver")
+  tasks           Task[]
+  kpiRecords      KPIRecord[]
+  engagementRecords EngagementRecord[]
+  recommendations AIRecommendation[]
+  simulations     DigitalTwinSimulation[]
+  burnoutEvents   BurnoutShieldEvent[] @relation("BurnoutOfficer")
+  burnoutDestEvents BurnoutShieldEvent[] @relation("BurnoutReassignedTo")
+  sparrowSyncs    SparrowSyncRecord[]
+  auditLogs       AuditLogEntry[]
+  notifications   Notification[]
+  comments        ReviewComment[]
+}
+
+model Department {
+  id                 Int          @id @default(autoincrement())
+  name               String       @unique
+  level              String       // "national", "state", "department", "division", "district", "team"
+  parentDepartmentId Int?
+  parentDepartment   Department?  @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id])
+  childDepartments   Department[] @relation("DepartmentHierarchy")
+  ministryId         Int?         // Representing the top-level ministry
+  users              User[]
+  citizenRecords     CitizenServiceRecord[]
+  reports            Report[]
+}
+
+model File {
+  id               Int            @id @default(autoincrement())
+  subject          String
+  category         String
+  priority         String
+  createdById      Int
+  createdBy        User           @relation("CreatedBy", fields: [createdById], references: [id])
+  currentHolderId  Int
+  currentHolder    User           @relation("CurrentHolder", fields: [currentHolderId], references: [id])
+  status           String         // "pending", "approved", "rejected", "archived"
+  createdAt        DateTime       @default(now())
+  slaCategoryDays  Int
+  employeeReason   String?
+  
+  // Relations
+  movements        FileMovement[]
+  recommendations  AIRecommendation[]
+}
+
+model FileMovement {
+  id                   Int      @id @default(autoincrement())
+  fileId               Int
+  file                 File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  fromUserId           Int
+  fromUser             User     @relation("Sender", fields: [fromUserId], references: [id])
+  toUserId             Int
+  toUser               User     @relation("Receiver", fields: [toUserId], references: [id])
+  note                 String
+  timestamp            DateTime @default(now())
+  digitalSignatureHash String?
+}
+
+model Goal {
+  id               Int      @id @default(autoincrement())
+  title            String
+  description      String?
+  level            String   // "national", "state", "department", "officer"
+  parentGoalId     Int?
+  ownerType        String   // "individual", "team", "department"
+  ownerId          Int      // Maps to userId or departmentId
+  targetMetric     String
+  targetValue      Float
+  currentValue     Float    @default(0)
+  deadline         DateTime
+  status           String   // "pending", "on_track", "at_risk", "completed", "archived"
+  successParameter String   // plain text explanation e.g. "90% of applications cleared"
+  createdById      Int
+  createdAt        DateTime @default(now())
+  
+  // Relations
+  tasks            Task[]
+  recommendations  AIRecommendation[]
+}
+
+model Task {
+  id            Int      @id @default(autoincrement())
+  goalId        Int
+  goal          Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  assignedToId  Int
+  assignedTo    User     @relation(fields: [assignedToId], references: [id])
+  description   String
+  deadline      DateTime
+  status        String   // "to-do", "in-progress", "done"
+  completionPct Float    @default(0)
+  createdAt     DateTime @default(now())
+}
+
+model KPIRecord {
+  id                 Int      @id @default(autoincrement())
+  userId             Int
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date               DateTime
+  completionPct      Float
+  delayPct           Float
+  avgResolutionTime  Float
+  pendingCount       Int
+  attendancePct      Float
+  citizenRating      Float
+  collaborationScore Float
+  qualityScore       Float
+  productivityScore  Float
+  dpi                Float
+}
+
+model EngagementRecord {
+  id                    Int      @id @default(autoincrement())
+  userId                Int
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month                 String   // "YYYY-MM"
+  recognitionCount      Int      @default(0)
+  feedbackScore         Float    @default(0) // rating e.g. 1-5
+  skillDevHours         Float    @default(0)
+  workloadFairnessScore Float    @default(0)
+  surveyScore           Float    @default(0)
+  badgesEarned          String   // Comma separated list of badges e.g. "speed_demon,citizen_hero"
+  engagementIndex       Float
+}
+
+model BenchmarkRecord {
+  id                 Int      @id @default(autoincrement())
+  entityType         String   // "officer", "team", "department", "district", "state"
+  entityId           Int
+  month              String   // "YYYY-MM"
+  avgProductivity    Float
+  avgTurnaround      Float
+  backlogCount       Int
+  rankInPeerGroup    Int
+  peerGroupAvg       Float
+}
+
+model AIRecommendation {
+  id              Int      @id @default(autoincrement())
+  type            String   // "delay_risk", "burnout", "rework_risk", "reassignment"
+  targetUserId    Int?
+  targetUser      User?    @relation(fields: [targetUserId], references: [id])
+  targetFileId    Int?
+  targetFile      File?    @relation(fields: [targetFileId], references: [id])
+  targetGoalId    Int?
+  targetGoal      Goal?    @relation(fields: [targetGoalId], references: [id])
+  message         String
+  confidenceScore Float
+  status          String   // "pending", "accepted", "dismissed"
+  createdAt       DateTime @default(now())
+}
+
+model DigitalTwinSimulation {
+  id                     Int      @id @default(autoincrement())
+  requestedById          Int
+  requestedBy            User     @relation(fields: [requestedById], references: [id])
+  scenarioDescription    String
+  beforeBacklog          String   // JSON string of before-state mapping userId -> backlog count
+  afterBacklogProjection String   // JSON string of after-state mapping userId -> backlog count
+  affectedUserIds        String   // Comma-separated list of affected user IDs
+  createdAt              DateTime @default(now())
+}
+
+model BurnoutShieldEvent {
+  id              Int      @id @default(autoincrement())
+  officerId       Int
+  officer         User     @relation("BurnoutOfficer", fields: [officerId], references: [id])
+  triggerReason   String
+  filesReassigned String   // Comma-separated list of file IDs reassigned
+  reassignedToId  Int?
+  reassignedTo    User?    @relation("BurnoutReassignedTo", fields: [reassignedToId], references: [id])
+  status          String   // "proposed", "auto_executed", "reverted"
+  createdAt       DateTime @default(now())
+}
+
+model CitizenServiceRecord {
+  id              Int        @id @default(autoincrement())
+  departmentId    Int
+  department      Department @relation(fields: [departmentId], references: [id])
+  month           String     // "YYYY-MM"
+  citizensServed  Int
+  avgWaitDays     Float
+  baselineWaitDays Float
+  improvementPct  Float
+}
+
+model SparrowSyncRecord {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id])
+  month           String   // "YYYY-MM"
+  dpi             Float
+  achievements    String   // Comma separated list of badges/awards
+  attendancePct   Float
+  engagementIndex Float
+  recommendations String   // summary notes
+  syncStatus      String   // "Pending", "Synced"
+  syncedAt        DateTime?
+}
+
+model AuditLogEntry {
+  id                   Int      @id @default(autoincrement())
+  actorId              Int?
+  actor                User?    @relation(fields: [actorId], references: [id])
+  actionType           String   // "goal_created", "goal_updated", "digital_signature", "ai_recommendation_accepted", "burnout_shield_activated", "survey_submitted"
+  entityId             Int
+  entityType           String   // e.g. "Goal", "File", "Task", "AuditLog"
+  details              String
+  timestamp            DateTime @default(now())
+  previousHash         String
+  currentHash          String
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "goal_delayed", "deadline", "high_risk_file", "ai_recommendation", "survey_pending", "performance_improvement"
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model ReviewComment {
+  id         Int      @id @default(autoincrement())
+  authorId   Int
+  author     User     @relation(fields: [authorId], references: [id])
+  targetType String   // "file", "task", "officer"
+  targetId   Int      // ID of target
+  comment    String
+  visibility String   // "officer", "officer_and_chain"
+  createdAt  DateTime @default(now())
+}
+
+model Report {
+  id                Int        @id @default(autoincrement())
+  type              String     // "weekly", "monthly", "quarterly", "yearly"
+  departmentId      Int?
+  department        Department? @relation(fields: [departmentId], references: [id])
+  generatedAt       DateTime   @default(now())
+  dataSnapshotJson  String     // JSON snapshot of report metrics
+}
+
+// Weights per Department
+model DepartmentWeight {
+  id           Int   @id @default(autoincrement())
+  departmentId Int   @unique
+  w1           Float @default(0.30) // Completion Rate
+  w2           Float @default(0.20) // Timeliness Score
+  w3           Float @default(0.15) // Quality Score
+  w4           Float @default(0.15) // Attendance Score
+  w5           Float @default(0.10) // Collaboration Score
+  w6           Float @default(0.20) // Delay Penalty
+}
