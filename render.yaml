@@ -1,3 +1,7 @@
+databases:
+  - name: eoffice-db
+    plan: free
+
 services:
   - type: web
     name: eoffice-pro
@@ -5,13 +9,11 @@ services:
     plan: free
     buildCommand: npx prisma generate && npm run build
     startCommand: npx prisma db push --accept-data-loss && npm run start
-    disk:
-      name: sqlite-data
-      mountPath: /data
-      sizeGB: 1
     envVars:
       - key: DATABASE_URL
-        value: file:/data/dev.db
+        fromDatabase:
+          name: eoffice-db
+          property: connectionString
       - key: NODE_ENV
         value: production
       - key: NEXTAUTH_SECRET
