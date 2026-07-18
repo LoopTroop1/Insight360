@@ -32,7 +32,11 @@ import {
   Award,
   CheckCircle,
   XCircle,
-  Lightbulb
+  Lightbulb,
+  X,
+  FileText,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 
 interface MetricCardProps {
@@ -43,11 +47,15 @@ interface MetricCardProps {
   trendDir?: 'up' | 'down';
   color: string;
   icon: React.ReactNode;
+  onClick?: () => void;
 }
 
-function MetricCard({ title, value, label, trend, trendDir, color, icon }: MetricCardProps) {
+function MetricCard({ title, value, label, trend, trendDir, color, icon, onClick }: MetricCardProps) {
   return (
-    <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm relative overflow-hidden hover-scale">
+    <div 
+      onClick={onClick}
+      className={`p-5 bg-white border border-slate-200 rounded-2xl shadow-sm relative overflow-hidden hover-scale ${onClick ? 'cursor-pointer' : ''}`}
+    >
       <div className={`absolute top-0 left-0 right-0 h-1 ${color}`}></div>
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{title}</span>
@@ -80,6 +88,59 @@ export default function SecretaryPage() {
   const [loading, setLoading] = useState(true);
   const [actingRecId, setActingRecId] = useState<number | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+
+  // Drilldown states
+  const [drilldownType, setDrilldownType] = useState<string | null>(null);
+  const [drilldownTitle, setDrilldownTitle] = useState<string>('');
+  const [drilldownData, setDrilldownData] = useState<any[]>([]);
+  const [drilldownLoading, setDrilldownLoading] = useState(false);
+
+  const handleDrilldown = async (type: string, title: string) => {
+    if (!currentUser) return;
+    setDrilldownType(type);
+    setDrilldownTitle(title);
+    setDrilldownData([]);
+    
+    // Local state data metrics (doesn't require fetching)
+    if (type === 'departments_at_risk') {
+      const atRiskDepts = (dashboardData?.deptRankings || []).filter((d: any) => d.status === 'At Risk');
+      setDrilldownData(atRiskDepts);
+      return;
+    }
+    if (type === 'overall_dpi') {
+      setDrilldownData(dashboardData?.benchmarkData || []);
+      return;
+    }
+    if (type === 'citizen_score') {
+      setDrilldownData(dashboardData?.citizenRecords || []);
+      return;
+    }
+
+    // Server-fetched data metrics
+    setDrilldownLoading(true);
+    try {
+      if (type === 'pending_files') {
+        const res = await fetch('/api/files?all=true&status=pending');
+        if (res.ok) {
+          const files = await res.json();
+          setDrilldownData(files);
+        }
+      } else if (type === 'goals_on_track' || type === 'completed_goals') {
+        const res = await fetch(`/api/goals?userId=${currentUser.id}`);
+        if (res.ok) {
+          const goals = await res.json();
+          const filtered = goals.filter((g: any) => 
+            type === 'goals_on_track' ? g.status === 'on_track' : g.status === 'completed'
+          );
+          setDrilldownData(filtered);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching drilldown details:', err);
+    } finally {
+      setDrilldownLoading(false);
+    }
+  };
 
   useEffect(() => {
     setIsMounted(true);
@@ -194,6 +255,7 @@ export default function SecretaryPage() {
             trendDir="up"
             color="bg-blue-900"
             icon={<TrendingUp className="h-4.5 w-4.5" />}
+            onClick={() => handleDrilldown('overall_dpi', 'Overall DPI Performance Ratings')}
           />
           <MetricCard
             title="Goal Completion"
@@ -203,6 +265,7 @@ export default function SecretaryPage() {
             trendDir="up"
             color="bg-green-600"
             icon={<Target className="h-4.5 w-4.5" />}
+            onClick={() => handleDrilldown('completed_goals', 'Completed Strategic Goals')}
           />
           <MetricCard
             title="Departments At Risk"
@@ -212,6 +275,7 @@ export default function SecretaryPage() {
             trendDir="up"
             color="bg-red-500"
             icon={<AlertTriangle className="h-4.5 w-4.5 text-red-500" />}
+            onClick={() => handleDrilldown('departments_at_risk', 'Departments Currently Flagged At Risk')}
           />
           <MetricCard
             title="Goals On Track"
@@ -221,6 +285,7 @@ export default function SecretaryPage() {
             trendDir="up"
             color="bg-emerald-500"
             icon={<CheckCircle className="h-4.5 w-4.5 text-emerald-600" />}
+            onClick={() => handleDrilldown('goals_on_track', 'Active Goals On Track')}
           />
           <MetricCard
             title="Pending Files"
@@ -230,6 +295,7 @@ export default function SecretaryPage() {
             trendDir="up"
             color="bg-amber-500"
             icon={<FolderOpen className="h-4.5 w-4.5 text-amber-500" />}
+            onClick={() => handleDrilldown('pending_files', 'All Organization-Wide Pending Files')}
           />
           <MetricCard
             title="Citizen Score"
@@ -239,6 +305,7 @@ export default function SecretaryPage() {
             trendDir="up"
             color="bg-purple-600"
             icon={<Users2 className="h-4.5 w-4.5 text-purple-600" />}
+            onClick={() => handleDrilldown('citizen_score', 'Citizen Impact Service Outcomes')}
           />
         </div>
 
@@ -460,6 +527,264 @@ export default function SecretaryPage() {
         </div>
 
       </div>
+
+      {/* Drill-down Modal */}
+      {drilldownType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 transition-all duration-300 animate-fade-in">
+          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-200 animate-scale-in">
+            
+            {/* Header */}
+            <div className="relative text-white p-5 flex flex-col justify-between select-none" style={{ background: 'linear-gradient(135deg, #1a3c6e 0%, #1e3a8a 100%)' }}>
+              <div className="absolute top-0 left-0 right-0 h-1.5 flex">
+                <div className="flex-1 bg-[#FF9933]"></div>
+                <div className="flex-1 bg-white"></div>
+                <div className="flex-1 bg-[#138808]"></div>
+              </div>
+              
+              <div className="flex justify-between items-center mt-1">
+                <div>
+                  <h3 className="text-lg font-bold tracking-tight">{drilldownTitle}</h3>
+                  <p className="text-xs text-slate-300">Detailed metric ledger records</p>
+                </div>
+                <button 
+                  onClick={() => setDrilldownType(null)}
+                  className="p-1.5 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+              {drilldownLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <RefreshCw className="h-8 w-8 animate-spin text-blue-900" />
+                  <p className="text-xs text-slate-500 font-semibold">Retrieving matching ledger entries...</p>
+                </div>
+              ) : drilldownData.length === 0 ? (
+                <div className="text-center py-16 text-slate-500 text-xs font-semibold">
+                  No records found matching this metric.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  {drilldownType === 'pending_files' && (
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 font-bold text-slate-500 pb-2 bg-slate-100/50">
+                          <th className="py-2.5 px-3">File ID & Subject</th>
+                          <th className="py-2.5 px-3">Category</th>
+                          <th className="py-2.5 px-3 text-center">Priority</th>
+                          <th className="py-2.5 px-3">Current Holder</th>
+                          <th className="py-2.5 px-3 text-right">SLA Target Due</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium bg-white">
+                        {drilldownData.map((file) => {
+                          const priorityLower = file.priority.toLowerCase();
+                          const receivedDate = new Date(file.createdAt);
+                          const dueDate = new Date(receivedDate);
+                          dueDate.setDate(dueDate.getDate() + file.slaCategoryDays);
+                          const isOverdue = dueDate < new Date();
+                          
+                          const fileIdMatch = file.subject.match(/^File-(\d+):/i);
+                          const fileIdStr = fileIdMatch ? `File ${fileIdMatch[1]}` : `File #${file.id}`;
+                          const cleanSubject = file.subject
+                            .replace(/^File-\d+:\s*/i, '')
+                            .replace(/^Discussion on\s*/i, '');
+
+                          return (
+                            <tr key={file.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="py-3 px-3">
+                                <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                                    {fileIdStr}
+                                  </span>
+                                  {cleanSubject}
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 text-slate-500">{file.category}</td>
+                              <td className="py-3 px-3 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 border ${
+                                  priorityLower === 'high' || priorityLower === 'urgent' || priorityLower === 'critical'
+                                    ? 'bg-red-50 text-red-600 border-red-200'
+                                    : priorityLower === 'medium'
+                                    ? 'bg-amber-50 text-amber-600 border-amber-200'
+                                    : 'bg-slate-50 text-slate-600 border-slate-200'
+                                }`}>
+                                  {file.priority}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-slate-700 font-semibold">{file.currentHolder?.name || 'Unassigned'}</td>
+                              <td className="py-3 px-3 text-right">
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <span className={`font-semibold ${isOverdue ? 'text-red-500 font-bold' : 'text-slate-500'}`}>
+                                    {dueDate.toLocaleDateString()} {isOverdue && '(Overdue)'}
+                                  </span>
+                                  <span className="text-[9px] text-slate-400">Recv: {receivedDate.toLocaleDateString()}</span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {drilldownType === 'overall_dpi' && (
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 font-bold text-slate-500 pb-2 bg-slate-100/50">
+                          <th className="py-2.5 px-3">Rank</th>
+                          <th className="py-2.5 px-3">Officer Name</th>
+                          <th className="py-2.5 px-3">Department</th>
+                          <th className="py-2.5 px-3 text-center">Productivity Index (DPI)</th>
+                          <th className="py-2.5 px-3 text-right">Benchmark Ratio</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium bg-white">
+                        {drilldownData.map((item) => (
+                          <tr key={item.name} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="py-3 px-3 font-mono text-slate-400">#{item.rank}</td>
+                            <td className="py-3 px-3 font-bold text-slate-800">
+                              <div>{item.name}</div>
+                              <div className="text-[10px] text-slate-400 font-medium">{item.designation}</div>
+                            </td>
+                            <td className="py-3 px-3 text-slate-500">{item.department}</td>
+                            <td className="py-3 px-3 text-center">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                item.score >= 80 ? 'bg-green-50 text-green-800' : item.score >= 50 ? 'bg-amber-50 text-amber-800' : 'bg-red-50 text-red-800'
+                              }`}>
+                                {item.score.toFixed(1)} %
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right font-semibold text-slate-600">
+                              {item.peerAvg > 0 ? ((item.score / item.peerAvg) * 100).toFixed(0) : 100}% of peer avg
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {(drilldownType === 'goals_on_track' || drilldownType === 'completed_goals') && (
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 font-bold text-slate-500 pb-2 bg-slate-100/50">
+                          <th className="py-2.5 px-3">Goal Details</th>
+                          <th className="py-2.5 px-3 text-center">Level</th>
+                          <th className="py-2.5 px-3">Owner</th>
+                          <th className="py-2.5 px-3 text-center">Target Metric</th>
+                          <th className="py-2.5 px-3 text-center">Progress %</th>
+                          <th className="py-2.5 px-3 text-right">Target Deadline</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium bg-white">
+                        {drilldownData.map((goal) => {
+                          const progressPct = goal.targetValue === 0 ? 0 : Math.round((goal.currentValue / goal.targetValue) * 100);
+                          return (
+                            <tr key={goal.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="py-3 px-3 max-w-xs">
+                                <div className="font-bold text-slate-800">{goal.title}</div>
+                                <div className="text-[10px] text-slate-400 font-normal leading-normal">{goal.description}</div>
+                              </td>
+                              <td className="py-3 px-3 text-center uppercase text-[9px] font-extrabold text-slate-400">{goal.level}</td>
+                              <td className="py-3 px-3 text-slate-700 font-semibold">{goal.ownerName}</td>
+                              <td className="py-3 px-3 text-center text-slate-500 font-mono">{goal.targetMetric}</td>
+                              <td className="py-3 px-3 text-center">
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div 
+                                      className={`h-full rounded-full ${drilldownType === 'completed_goals' ? 'bg-green-500' : 'bg-blue-600'}`} 
+                                      style={{ width: `${progressPct}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[9px] font-bold text-slate-600">{progressPct}% ({goal.currentValue}/{goal.targetValue})</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 text-right text-slate-600 font-semibold">{new Date(goal.deadline).toLocaleDateString()}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {drilldownType === 'departments_at_risk' && (
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 font-bold text-slate-500 pb-2 bg-slate-100/50">
+                          <th className="py-2.5 px-3">Department Name</th>
+                          <th className="py-2.5 px-3 text-center">Level</th>
+                          <th className="py-2.5 px-3 text-center">Avg Productivity</th>
+                          <th className="py-2.5 px-3 text-center">File Backlog</th>
+                          <th className="py-2.5 px-3 text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium bg-white">
+                        {drilldownData.map((dept) => (
+                          <tr key={dept.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="py-3 px-3 font-bold text-slate-800">{dept.name}</td>
+                            <td className="py-3 px-3 text-center uppercase text-[9px] font-extrabold text-slate-400">{dept.level}</td>
+                            <td className="py-3 px-3 text-center font-bold text-red-600">{dept.avgProductivity} %</td>
+                            <td className="py-3 px-3 text-center text-slate-500">{dept.backlog} files</td>
+                            <td className="py-3 px-3 text-right">
+                              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-red-100 text-red-800 border border-red-200">
+                                At Risk
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {drilldownType === 'citizen_score' && (
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 font-bold text-slate-500 pb-2 bg-slate-100/50">
+                          <th className="py-2.5 px-3">Department Name</th>
+                          <th className="py-2.5 px-3 text-center">Citizens Served</th>
+                          <th className="py-2.5 px-3 text-center">Avg Wait Time</th>
+                          <th className="py-2.5 px-3 text-center">Baseline Wait</th>
+                          <th className="py-2.5 px-3 text-right">Service Improvement %</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium bg-white">
+                        {drilldownData.map((rec) => (
+                          <tr key={rec.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="py-3 px-3 font-bold text-slate-800">{rec.department?.name || 'Unknown Department'}</td>
+                            <td className="py-3 px-3 text-center font-semibold text-slate-700">{rec.citizensServed.toLocaleString()}</td>
+                            <td className="py-3 px-3 text-center text-slate-500">{rec.avgWaitDays.toFixed(1)} days</td>
+                            <td className="py-3 px-3 text-center text-slate-400">{rec.baselineWaitDays.toFixed(1)} days</td>
+                            <td className="py-3 px-3 text-right">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-700 border border-green-200">
+                                + {rec.improvementPct.toFixed(1)} %
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
+              <span className="text-[10px] text-slate-400 font-semibold uppercase">e-Office Pro Drilldown Engine</span>
+              <button 
+                onClick={() => setDrilldownType(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition-all"
+              >
+                Close Ledger
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

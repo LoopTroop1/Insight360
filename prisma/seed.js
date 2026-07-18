@@ -309,7 +309,7 @@ async function main() {
     // Pick an officer assigned to this task
     const assignedOfficer = users[t % users.length];
 
-    const status = t % 4 === 0 ? "done" : t % 3 === 0 ? "in-progress" : "to-do";
+    const status = (t + 2) % 4 === 0 ? "done" : t % 3 === 0 ? "in-progress" : "to-do";
     const completionPct = status === "done" ? 100 : status === "in-progress" ? (20 + (t * 5) % 60) : 0;
 
     await prisma.task.create({

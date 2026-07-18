@@ -16,7 +16,12 @@ import {
   RefreshCw,
   LayoutDashboard,
   CheckSquare,
-  FileSpreadsheet
+  FileSpreadsheet,
+  X,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  ArrowRight
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -29,6 +34,45 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
+
+  // Priority Briefing Modal States
+  const [showPriorityModal, setShowPriorityModal] = useState(false);
+  const [briefingData, setBriefingData] = useState<{
+    tasks: any[];
+    pendingFiles: any[];
+    latestKpi?: any;
+  } | null>(null);
+  const [fetchingBriefing, setFetchingBriefing] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    // Check if the user has already seen the daily briefing popup in the current session
+    const key = `seen_priority_briefing_${currentUser.id}`;
+    const hasSeen = sessionStorage.getItem(key);
+    
+    if (!hasSeen) {
+      setShowPriorityModal(true);
+      sessionStorage.setItem(key, 'true');
+      
+      // Fetch user briefing payload (tasks, pending files, KPIs)
+      setFetchingBriefing(true);
+      fetch(`/api/officer-dashboard?userId=${currentUser.id}`)
+        .then((res) => {
+          if (res.ok) return res.json();
+          throw new Error('Failed to fetch briefing data');
+        })
+        .then((data) => {
+          setBriefingData({
+            tasks: data.tasks || [],
+            pendingFiles: data.pendingFiles || [],
+            latestKpi: data.latestKpi || null,
+          });
+        })
+        .catch((err) => console.error('Error fetching priority briefing:', err))
+        .finally(() => setFetchingBriefing(false));
+    }
+  }, [currentUser]);
 
   // Fetch unread notifications count
   useEffect(() => {
@@ -270,6 +314,266 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {children}
         </main>
       </div>
+
+      {/* Priority Briefing Modal Popup */}
+      {showPriorityModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 transition-all duration-300 animate-fade-in">
+          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200 animate-scale-in">
+            
+            {/* Header Banner */}
+            <div className="relative text-white p-6 flex flex-col justify-between select-none" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)' }}>
+              <div className="absolute top-0 left-0 right-0 h-1.5 flex">
+                <div className="flex-1 bg-[#FF9933]"></div>
+                <div className="flex-1 bg-white"></div>
+                <div className="flex-1 bg-[#138808]"></div>
+              </div>
+              
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-amber-400 animate-bounce" />
+                    Daily Performance Briefing
+                  </h2>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Welcome back, <span className="font-semibold text-white">{currentUser?.name}</span> ({currentUser?.designation})
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowPriorityModal(false)}
+                  className="p-1.5 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Mini DPI Card */}
+              {briefingData?.latestKpi && (
+                <div className="mt-4 p-3 bg-white/10 border border-white/10 rounded-xl flex items-center justify-between gap-4 backdrop-blur-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center font-bold text-amber-300 text-sm">
+                      DPI
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-300">Departmental/Individual Index</p>
+                      <p className="text-sm font-bold text-white">
+                        Performance Rating: {briefingData.latestKpi.dpi.toFixed(1)} / 100
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      briefingData.latestKpi.dpi >= 80 
+                        ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                        : briefingData.latestKpi.dpi >= 50 
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
+                        : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                    }`}>
+                      {briefingData.latestKpi.dpi >= 80 ? 'Exemplary' : briefingData.latestKpi.dpi >= 50 ? 'Satisfactory' : 'Needs Review'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Content Columns */}
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+              {fetchingBriefing ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <RefreshCw className="h-8 w-8 animate-spin text-blue-900" />
+                  <p className="text-xs font-medium text-slate-500">Retrieving today's agenda...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {/* Left: Tasks */}
+                  <div className="flex flex-col">
+                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3 border-b border-slate-200 pb-2 uppercase tracking-wider text-xs">
+                      <CheckSquare className="h-4 w-4 text-blue-600" />
+                      Priority Tasks ({briefingData?.tasks.filter(t => t.status !== 'done').length || 0})
+                    </h3>
+                    
+                    <div className="space-y-3 overflow-y-auto max-h-[380px] pr-1">
+                      {briefingData?.tasks.filter(t => t.status !== 'done').length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-white rounded-xl border border-slate-200">
+                          <CheckCircle2 className="h-8 w-8 text-green-500 mb-2" />
+                          <p className="text-xs font-bold text-slate-800">All Tasks Completed</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Great job! You have no outstanding tasks for today.</p>
+                        </div>
+                      ) : (
+                        briefingData?.tasks.filter(t => t.status !== 'done').map((task) => {
+                          const isOverdue = new Date(task.deadline) < new Date();
+                          const taskIdMatch = task.description.match(/^Task-(\d+):/i);
+                          const taskId = taskIdMatch ? `Task ${taskIdMatch[1]}` : `Task #${task.id}`;
+                          const cleanDesc = task.description
+                            .replace(/^Task-\d+:\s*/i, '')
+                            .replace(/^Detail action item supporting\s*/i, '')
+                            .replace(/\.\s*Requires detailed compliance review\.?$/i, '');
+
+                          const daysLeft = Math.ceil((new Date(task.deadline).getTime() - new Date().getTime()) / (24 * 60 * 60 * 1000));
+                          let deadlineText = '';
+                          if (daysLeft < 0) {
+                            deadlineText = `Overdue by ${Math.abs(daysLeft)}d`;
+                          } else if (daysLeft === 0) {
+                            deadlineText = 'Due Today';
+                          } else if (daysLeft === 1) {
+                            deadlineText = 'Due Tomorrow';
+                          } else {
+                            deadlineText = `Due in ${daysLeft}d`;
+                          }
+
+                          return (
+                            <div key={task.id} className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-300 transition-all flex flex-col gap-2 shadow-sm hover-scale">
+                              <div className="flex justify-between items-start gap-2">
+                                <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5 shrink-0">
+                                  <CheckSquare className="h-3.5 w-3.5" />
+                                  {taskId}
+                                </span>
+                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
+                                  task.status === 'in-progress' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {task.status}
+                                </span>
+                              </div>
+
+                              <p className="text-xs font-semibold text-slate-800 line-clamp-1 leading-relaxed">
+                                {cleanDesc}
+                              </p>
+
+                              {/* Visual Progress Bar */}
+                              <div className="flex items-center gap-2 mt-1">
+                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-blue-600 rounded-full transition-all duration-500" 
+                                    style={{ width: `${task.completionPct}%` }}
+                                  />
+                                </div>
+                                <span className="text-[9px] font-bold text-slate-500">{task.completionPct}%</span>
+                              </div>
+
+                              <div className="flex justify-between items-center text-[9px] text-slate-400 border-t border-slate-100 pt-1.5 mt-1">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  Deadline: {new Date(task.deadline).toLocaleDateString()}
+                                </span>
+                                <span className={`font-semibold flex items-center gap-1 ${isOverdue ? 'text-red-500 font-bold animate-pulse' : 'text-slate-500'}`}>
+                                  <AlertCircle className="h-3 w-3" />
+                                  {deadlineText}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: Files */}
+                  <div className="flex flex-col">
+                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3 border-b border-slate-200 pb-2 uppercase tracking-wider text-xs">
+                      <FileText className="h-4 w-4 text-amber-600" />
+                      Pending Files ({briefingData?.pendingFiles.length || 0})
+                    </h3>
+
+                    <div className="space-y-3 overflow-y-auto max-h-[380px] pr-1">
+                      {briefingData?.pendingFiles.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-white rounded-xl border border-slate-200">
+                          <CheckCircle2 className="h-8 w-8 text-green-500 mb-2" />
+                          <p className="text-xs font-bold text-slate-800">Files Queue Cleared</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">No pending files require your signature.</p>
+                        </div>
+                      ) : (
+                        briefingData?.pendingFiles.map((file) => {
+                          const priorityLower = file.priority.toLowerCase();
+                          const receivedDate = new Date(file.createdAt);
+                          const dueDate = new Date(receivedDate);
+                          dueDate.setDate(dueDate.getDate() + file.slaCategoryDays);
+                          const isOverdue = dueDate < new Date();
+                          
+                          const fileIdMatch = file.subject.match(/^File-(\d+):/i);
+                          const fileIdStr = fileIdMatch ? `File ${fileIdMatch[1]}` : `File #${file.id}`;
+                          const cleanSubject = file.subject
+                            .replace(/^File-\d+:\s*/i, '')
+                            .replace(/^Discussion on\s*/i, '');
+
+                          const elapsedDays = Math.max(0, Math.floor((new Date().getTime() - receivedDate.getTime()) / (24 * 60 * 60 * 1000)));
+                          const slaPercent = Math.min(100, Math.round((elapsedDays / file.slaCategoryDays) * 100));
+                          const slaColor = isOverdue ? 'bg-red-500' : slaPercent > 75 ? 'bg-amber-500' : 'bg-green-500';
+
+                          return (
+                            <div key={file.id} className="p-3 bg-white rounded-xl border border-slate-200 hover:border-amber-300 transition-all flex flex-col gap-2 shadow-sm hover-scale">
+                              <div className="flex justify-between items-start gap-2">
+                                <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5 shrink-0">
+                                  <FileText className="h-3.5 w-3.5" />
+                                  {fileIdStr}
+                                </span>
+                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider shrink-0 border ${
+                                  priorityLower === 'high' || priorityLower === 'urgent' || priorityLower === 'critical'
+                                    ? 'bg-red-50 text-red-600 border-red-200'
+                                    : priorityLower === 'medium'
+                                    ? 'bg-amber-50 text-amber-600 border-amber-200'
+                                    : 'bg-slate-50 text-slate-600 border-slate-200'
+                                }`}>
+                                  {file.priority}
+                                </span>
+                              </div>
+
+                              <p className="text-xs font-semibold text-slate-800 line-clamp-1 leading-relaxed">
+                                {cleanSubject}
+                              </p>
+
+                              {/* SLA Progress Bar */}
+                              <div className="mt-1 space-y-1">
+                                <div className="flex justify-between text-[8px] font-semibold text-slate-400">
+                                  <span>SLA Time Elapsed: {slaPercent}%</span>
+                                  <span>{elapsedDays}/{file.slaCategoryDays} Days</span>
+                                </div>
+                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full ${slaColor} rounded-full`} 
+                                    style={{ width: `${slaPercent}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex justify-between items-center text-[9px] text-slate-400 border-t border-slate-100 pt-1.5 mt-1">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  Recv: {receivedDate.toLocaleDateString()}
+                                </span>
+                                <span className={`font-semibold flex items-center gap-1 ${isOverdue ? 'text-red-500 font-bold' : 'text-slate-500'}`}>
+                                  <AlertCircle className="h-3 w-3" />
+                                  Due: {dueDate.toLocaleDateString()} {isOverdue && ' (Overdue)'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center gap-4">
+              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+                <Lock className="h-3.5 w-3.5 text-slate-400" />
+                <span>NIC secure workspace ledger</span>
+              </div>
+              <button
+                onClick={() => setShowPriorityModal(false)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all transform active:scale-95"
+              >
+                Acknowledge & Start Work
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
