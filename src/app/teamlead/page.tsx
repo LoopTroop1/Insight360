@@ -179,7 +179,7 @@ export default function TeamLeaderPage() {
 
                   <div className="text-xs text-slate-600 space-y-2 leading-relaxed">
                     <p>
-                      <strong>Recommendation</strong>: Reassign <strong>{prop.filesReassigned.split(',').length} pending files</strong> to <strong>{prop.reassignedTo.name}</strong>.
+                      <strong>Recommendation</strong>: Reassign <strong>{prop.filesReassigned.split(',').length} pending files</strong> to <strong>{prop.reassignedTo?.name || 'Matched Colleague (Pending)'}</strong>.
                     </p>
                     <p className="italic bg-slate-50 p-2 rounded text-[11px]">
                       "{prop.triggerReason}"

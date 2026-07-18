@@ -724,7 +724,7 @@ export default function AiDecisionCenter() {
 
                     <div className="text-xs text-slate-600 space-y-2 mt-2 leading-relaxed">
                       <p>
-                        Transfer <strong>{prop.filesReassigned.split(',').length} files</strong> to <strong>{prop.reassignedTo.name}</strong>.
+                        Transfer <strong>{prop.filesReassigned.split(',').length} files</strong> to <strong>{prop.reassignedTo?.name || 'Matched Colleague (Pending)'}</strong>.
                       </p>
                       <p className="italic bg-slate-50 p-2 rounded text-[11px]">
                         "{prop.triggerReason}"
