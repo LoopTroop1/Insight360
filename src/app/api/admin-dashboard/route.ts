@@ -66,7 +66,7 @@ export async function GET(request: Request) {
         level: dept.level,
         avgProductivity: parseFloat(avgProd.toFixed(1)),
         backlog,
-        status: avgProd < 65 ? 'At Risk' : 'Healthy'
+        status: avgProd < 65 ? 'At Risk' : 'Active'
       };
     }));
 
@@ -128,6 +128,7 @@ export async function GET(request: Request) {
           score: parseFloat(score.toFixed(1)),
           peerAvg: parseFloat(deptAvg.toFixed(1)),
           benchmarkIndex: benchmarkIdx,
+          avgResolutionTime: uKpi ? parseFloat(uKpi.avgResolutionTime.toFixed(1)) : 3.5,
           rank: 1 // compiled dynamically on client
         };
       });

@@ -402,62 +402,47 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       ) : (
                         briefingData?.tasks.filter(t => t.status !== 'done').map((task) => {
                           const isOverdue = new Date(task.deadline) < new Date();
-                          const taskIdMatch = task.description.match(/^Task-(\d+):/i);
-                          const taskId = taskIdMatch ? `Task ${taskIdMatch[1]}` : `Task #${task.id}`;
                           const cleanDesc = task.description
                             .replace(/^Task-\d+:\s*/i, '')
                             .replace(/^Detail action item supporting\s*/i, '')
                             .replace(/\.\s*Requires detailed compliance review\.?$/i, '');
 
                           const daysLeft = Math.ceil((new Date(task.deadline).getTime() - new Date().getTime()) / (24 * 60 * 60 * 1000));
-                          let deadlineText = '';
+                          let badgeText = '';
+                          let badgeColor = '';
                           if (daysLeft < 0) {
-                            deadlineText = `Overdue by ${Math.abs(daysLeft)}d`;
+                            badgeText = `🔴 Overdue by ${Math.abs(daysLeft)}d`;
+                            badgeColor = 'bg-rose-50 text-red-600 border border-red-200';
                           } else if (daysLeft === 0) {
-                            deadlineText = 'Due Today';
+                            badgeText = '🟠 Due Today';
+                            badgeColor = 'bg-amber-50 text-amber-600 border border-amber-200 animate-pulse';
                           } else if (daysLeft === 1) {
-                            deadlineText = 'Due Tomorrow';
+                            badgeText = '🟡 Due Tomorrow';
+                            badgeColor = 'bg-yellow-50 text-yellow-600 border border-yellow-200';
                           } else {
-                            deadlineText = `Due in ${daysLeft}d`;
+                            badgeText = `🟢 ${daysLeft} days left`;
+                            badgeColor = 'bg-emerald-50 text-emerald-600 border border-emerald-200';
                           }
 
                           return (
-                            <div key={task.id} className="p-3 bg-white rounded-xl border border-slate-200 hover:border-blue-300 transition-all flex flex-col gap-2 shadow-sm hover-scale">
-                              <div className="flex justify-between items-start gap-2">
-                                <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5 shrink-0">
-                                  <CheckSquare className="h-3.5 w-3.5" />
-                                  {taskId}
-                                </span>
-                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
-                                  task.status === 'in-progress' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-slate-100 text-slate-600'
-                                }`}>
-                                  {task.status}
+                            <div key={task.id} className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-blue-400 transition-all flex flex-col gap-3.5 shadow-sm hover-scale relative overflow-hidden">
+                              {isOverdue && <div className="absolute top-0 left-0 bottom-0 w-1 bg-red-500"></div>}
+                              <div className="flex justify-between items-start gap-4">
+                                <p className="text-xs font-bold text-slate-800 leading-relaxed flex-1">
+                                  {cleanDesc}
+                                </p>
+                                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold tracking-wide shrink-0 ${badgeColor}`}>
+                                  {badgeText}
                                 </span>
                               </div>
 
-                              <p className="text-xs font-semibold text-slate-800 line-clamp-1 leading-relaxed">
-                                {cleanDesc}
-                              </p>
-
-                              {/* Visual Progress Bar */}
-                              <div className="flex items-center gap-2 mt-1">
-                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-blue-600 rounded-full transition-all duration-500" 
-                                    style={{ width: `${task.completionPct}%` }}
-                                  />
-                                </div>
-                                <span className="text-[9px] font-bold text-slate-500">{task.completionPct}%</span>
-                              </div>
-
-                              <div className="flex justify-between items-center text-[9px] text-slate-400 border-t border-slate-100 pt-1.5 mt-1">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  Deadline: {new Date(task.deadline).toLocaleDateString()}
+                              <div className="flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-50 pt-2 shrink-0">
+                                <span className="flex items-center gap-1 font-medium text-slate-500">
+                                  <CheckSquare className="h-3.5 w-3.5 text-blue-900" />
+                                  Official Action Task
                                 </span>
-                                <span className={`font-semibold flex items-center gap-1 ${isOverdue ? 'text-red-500 font-bold animate-pulse' : 'text-slate-500'}`}>
-                                  <AlertCircle className="h-3 w-3" />
-                                  {deadlineText}
+                                <span className="font-semibold text-slate-500">
+                                  Due: {new Date(task.deadline).toLocaleDateString()}
                                 </span>
                               </div>
                             </div>
@@ -483,66 +468,51 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         </div>
                       ) : (
                         briefingData?.pendingFiles.map((file) => {
-                          const priorityLower = file.priority.toLowerCase();
                           const receivedDate = new Date(file.createdAt);
                           const dueDate = new Date(receivedDate);
                           dueDate.setDate(dueDate.getDate() + file.slaCategoryDays);
                           const isOverdue = dueDate < new Date();
                           
-                          const fileIdMatch = file.subject.match(/^File-(\d+):/i);
-                          const fileIdStr = fileIdMatch ? `File ${fileIdMatch[1]}` : `File #${file.id}`;
                           const cleanSubject = file.subject
                             .replace(/^File-\d+:\s*/i, '')
                             .replace(/^Discussion on\s*/i, '');
 
-                          const elapsedDays = Math.max(0, Math.floor((new Date().getTime() - receivedDate.getTime()) / (24 * 60 * 60 * 1000)));
-                          const slaPercent = Math.min(100, Math.round((elapsedDays / file.slaCategoryDays) * 100));
-                          const slaColor = isOverdue ? 'bg-red-500' : slaPercent > 75 ? 'bg-amber-500' : 'bg-green-500';
+                          const daysRemaining = Math.ceil((dueDate.getTime() - new Date().getTime()) / (24 * 60 * 60 * 1000));
+                          let badgeText = '';
+                          let badgeColor = '';
+                          if (daysRemaining < 0) {
+                            badgeText = `🔴 Overdue by ${Math.abs(daysRemaining)}d`;
+                            badgeColor = 'bg-rose-50 text-red-600 border border-red-200';
+                          } else if (daysRemaining === 0) {
+                            badgeText = '🟠 Due Today';
+                            badgeColor = 'bg-amber-50 text-amber-600 border border-amber-200 animate-pulse';
+                          } else if (daysRemaining === 1) {
+                            badgeText = '🟡 Due Tomorrow';
+                            badgeColor = 'bg-yellow-50 text-yellow-600 border border-yellow-200';
+                          } else {
+                            badgeText = `🟢 ${daysRemaining} days left`;
+                            badgeColor = 'bg-emerald-50 text-emerald-600 border border-emerald-200';
+                          }
 
                           return (
-                            <div key={file.id} className="p-3 bg-white rounded-xl border border-slate-200 hover:border-amber-300 transition-all flex flex-col gap-2 shadow-sm hover-scale">
-                              <div className="flex justify-between items-start gap-2">
-                                <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5 shrink-0">
-                                  <FileText className="h-3.5 w-3.5" />
-                                  {fileIdStr}
-                                </span>
-                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider shrink-0 border ${
-                                  priorityLower === 'high' || priorityLower === 'urgent' || priorityLower === 'critical'
-                                    ? 'bg-red-50 text-red-600 border-red-200'
-                                    : priorityLower === 'medium'
-                                    ? 'bg-amber-50 text-amber-600 border-amber-200'
-                                    : 'bg-slate-50 text-slate-600 border-slate-200'
-                                }`}>
-                                  {file.priority}
+                            <div key={file.id} className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-amber-400 transition-all flex flex-col gap-3.5 shadow-sm hover-scale relative overflow-hidden">
+                              {isOverdue && <div className="absolute top-0 left-0 bottom-0 w-1 bg-red-500"></div>}
+                              <div className="flex justify-between items-start gap-4">
+                                <p className="text-xs font-bold text-slate-800 leading-relaxed flex-1">
+                                  {cleanSubject}
+                                </p>
+                                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold tracking-wide shrink-0 ${badgeColor}`}>
+                                  {badgeText}
                                 </span>
                               </div>
 
-                              <p className="text-xs font-semibold text-slate-800 line-clamp-1 leading-relaxed">
-                                {cleanSubject}
-                              </p>
-
-                              {/* SLA Progress Bar */}
-                              <div className="mt-1 space-y-1">
-                                <div className="flex justify-between text-[8px] font-semibold text-slate-400">
-                                  <span>SLA Time Elapsed: {slaPercent}%</span>
-                                  <span>{elapsedDays}/{file.slaCategoryDays} Days</span>
-                                </div>
-                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                  <div 
-                                    className={`h-full ${slaColor} rounded-full`} 
-                                    style={{ width: `${slaPercent}%` }}
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="flex justify-between items-center text-[9px] text-slate-400 border-t border-slate-100 pt-1.5 mt-1">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  Recv: {receivedDate.toLocaleDateString()}
+                              <div className="flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-50 pt-2 shrink-0">
+                                <span className="flex items-center gap-1 font-medium text-slate-500">
+                                  <FileText className="h-3.5 w-3.5 text-amber-600" />
+                                  e-Office File ({file.priority})
                                 </span>
-                                <span className={`font-semibold flex items-center gap-1 ${isOverdue ? 'text-red-500 font-bold' : 'text-slate-500'}`}>
-                                  <AlertCircle className="h-3 w-3" />
-                                  Due: {dueDate.toLocaleDateString()} {isOverdue && ' (Overdue)'}
+                                <span className="font-semibold text-slate-500">
+                                  Due: {dueDate.toLocaleDateString()}
                                 </span>
                               </div>
                             </div>

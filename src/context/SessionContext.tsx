@@ -59,6 +59,20 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         }
         
         setCurrentUser(selectedUser || null);
+
+        // Send login alert on first session load if not sent in the last browser session
+        if (selectedUser) {
+          const alertKey = `login_alert_sent_${selectedUser.id}`;
+          const hasSentAlert = sessionStorage.getItem(alertKey);
+          if (!hasSentAlert) {
+            sessionStorage.setItem(alertKey, 'true');
+            fetch('/api/login-alert', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: selectedUser.id })
+            }).catch(err => console.error('Failed to trigger initial login alert email:', err));
+          }
+        }
       } catch (err) {
         console.error('Session initialization error:', err);
       } finally {
@@ -68,11 +82,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     fetchUsers();
   }, []);
 
-  const switchUser = (id: number) => {
+  const switchUser = async (id: number) => {
     const user = users.find((u) => u.id === id);
     if (user) {
       setCurrentUser(user);
       localStorage.setItem('eoffice_active_userid', id.toString());
+      
+      // Dispatch login alert email for explicit switch
+      try {
+        sessionStorage.setItem(`login_alert_sent_${id}`, 'true');
+        await fetch('/api/login-alert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: id })
+        });
+      } catch (err) {
+        console.error('Failed to trigger switched user login alert email:', err);
+      }
+
       // Only reload if switching persona on a dashboard page
       if (window.location.pathname !== '/') {
         window.location.reload();

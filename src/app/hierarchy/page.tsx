@@ -92,10 +92,10 @@ export default function HierarchyPage() {
     const rankInfo = deptRankings.find((r: any) => r.id === node.id) || {
       avgProductivity: 72.5,
       backlog: 2,
-      status: 'Healthy'
+      status: 'Active'
     };
 
-    const isRisk = rankInfo.status !== 'Healthy';
+    const isRisk = rankInfo.status !== 'Active';
 
     return (
       <div key={node.id} className="ml-6 border-l border-slate-200 pl-4 py-2 relative">
@@ -170,7 +170,7 @@ export default function HierarchyPage() {
               const rankInfo = deptRankings.find((r: any) => r.id === ministry.id) || {
                 avgProductivity: 72.5,
                 backlog: 2,
-                status: 'Healthy'
+                status: 'Active'
               };
 
               return (

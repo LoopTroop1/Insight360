@@ -23,6 +23,44 @@ import {
   Users2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend
+} from 'recharts';
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-slate-900 text-white p-4 rounded-xl shadow-xl border border-slate-700 max-w-sm text-xs leading-normal">
+        <p className="font-bold text-amber-400">{data.subject}</p>
+        <p className="mt-1 font-semibold">Days Delayed: <span className="text-red-400">{data.daysPending} days</span></p>
+        <p className="text-slate-400">Date Received: {data.date}</p>
+        <div className="mt-2 border-t border-slate-800 pt-2 space-y-1">
+          <p className="text-slate-300 font-semibold">Reason for Delay:</p>
+          <p className="italic text-slate-400">"{data.reason}"</p>
+          {data.employeeReason && data.employeeReason !== 'Routine review queue.' && (
+            <p className="text-slate-500 text-[10px]">Justification: "{data.employeeReason}"</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 interface DelayPrediction {
   id: number;
@@ -53,6 +91,62 @@ export default function AiDecisionCenter() {
   const { currentUser } = useSession();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Government Dashboard Telemetry States
+  const [throughputData, setThroughputData] = useState<any[]>([]);
+  const [radarData, setRadarData] = useState<any[]>([]);
+  const [systemLogs, setSystemLogs] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Generate initial files dispatched and received data for 12 hours
+    const tempData = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const timeLabel = new Date(now.getTime() - i * 60 * 60 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      tempData.push({
+        time: timeLabel,
+        dispatched: Math.floor(250 + Math.random() * 200),
+        received: Math.floor(200 + Math.random() * 200)
+      });
+    }
+    setThroughputData(tempData);
+
+    setRadarData([
+      { subject: 'File Clearance', A: 88, fullMark: 100 },
+      { subject: 'SLA Timeliness', A: 92, fullMark: 100 },
+      { subject: 'Citizen Grievance', A: 85, fullMark: 100 },
+      { subject: 'Goal Completion', A: 78, fullMark: 100 },
+      { subject: 'Cabinet Audits', A: 95, fullMark: 100 },
+    ]);
+
+    setSystemLogs([
+      `[${new Date().toLocaleTimeString()}] Secure Aadhaar e-Sign HSM handshake established for SPARROW.`,
+      `[${new Date(Date.now() - 4000).toLocaleTimeString()}] Audit Vault chain verified. Block height hash: 0x4fa8...9b3e`,
+      `[${new Date(Date.now() - 15000).toLocaleTimeString()}] e-Office File #1042 dispatched to Ministry of Electronics & IT.`,
+      `[${new Date(Date.now() - 35000).toLocaleTimeString()}] Burnout Shield: Workload balanced. Reassigned 3 critical files from overloaded Desk Officer.`,
+    ]);
+
+    // Live update simulator for real-time telemetry log effect
+    const interval = setInterval(() => {
+      setThroughputData(prev => {
+        const nextTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const newArr = prev.slice(1);
+        newArr.push({
+          time: nextTime,
+          dispatched: Math.floor(250 + Math.random() * 200),
+          received: Math.floor(200 + Math.random() * 200)
+        });
+        return newArr;
+      });
+
+      setSystemLogs(prev => {
+        const newLog = `[${new Date().toLocaleTimeString()}] System Telemetry: SLA Compliance ${Math.floor(88 + Math.random() * 10)}% | Dispatch Speed ${parseFloat((1.5 + Math.random() * 0.8).toFixed(1))} Days`;
+        return [newLog, ...prev.slice(0, 5)];
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Digital Twin Simulator State
   const [simulationMode, setSimulationMode] = useState<'auto' | 'manual'>('auto');
@@ -565,6 +659,190 @@ export default function AiDecisionCenter() {
             </div>
           </div>
         )}
+
+        {/* Delay Analytics Chart Visualization */}
+        <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-4">
+          <div>
+            <h3 className="font-bold text-sm text-slate-800 flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
+              <TrendingUp className="h-5 w-5 text-blue-900" />
+              Organizational Delay & Backlog Timeline
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Visual ledger plotting file age and pending delays. Hover over any node to inspect delay rationale and metrics.
+            </p>
+          </div>
+
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={fileDelayPredictions.map((pred: any) => ({
+                  id: pred.id,
+                  subject: pred.subject,
+                  daysPending: pred.daysPending,
+                  reason: pred.reason,
+                  employeeReason: pred.employeeReason,
+                  date: new Date(Date.now() - (pred.daysPending * 24 * 60 * 60 * 1000)).toLocaleDateString(),
+                })).sort((a: any, b: any) => a.daysPending - b.daysPending)}
+                margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 10, fill: '#64748b' }} 
+                  stroke="#cbd5e1"
+                />
+                <YAxis 
+                  label={{ value: 'Days Delayed', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#64748b', fontWeight: 'bold' } }}
+                  tick={{ fontSize: 10, fill: '#64748b' }}
+                  stroke="#cbd5e1"
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Line 
+                  type="monotone" 
+                  dataKey="daysPending" 
+                  stroke="#1e3a8a" 
+                  strokeWidth={3}
+                  activeDot={{ r: 6 }} 
+                  dot={{ r: 4, fill: '#1e3a8a', stroke: '#fff', strokeWidth: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* e-Office Workflow Telemetry Center */}
+        <div className="p-6 bg-slate-900 border border-slate-800 rounded-3xl shadow-xl space-y-6 text-white">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+            <div>
+              <div className="flex items-center gap-2">
+                <Sliders className="h-5 w-5 text-blue-400" />
+                <h3 className="font-extrabold text-base tracking-wide">National e-Office & Administrative Telemetry</h3>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Real-time e-Office file clearance performance, departmental SLA compliance, citizen grievance resolution, and e-Sign sync telemetry.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700/50 text-[10px] font-bold self-start md:self-auto">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              </span>
+              <span className="text-green-400">WORKFLOW TELEMETRY: ACTIVE</span>
+            </div>
+          </div>
+
+          {/* Infrastructure KPI Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">File Turnaround Speed</span>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl font-extrabold text-blue-400">1.8 Days</span>
+                <span className="text-[9px] text-green-400 font-semibold">SLA Compliant</span>
+              </div>
+              <div className="w-full bg-slate-800 h-1 rounded-full mt-3 overflow-hidden">
+                <div className="bg-blue-500 h-1 rounded-full w-[82%]"></div>
+              </div>
+            </div>
+            
+            <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SLA Compliance Rate</span>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl font-extrabold text-amber-400">92.4%</span>
+                <span className="text-[9px] text-slate-400 font-semibold">Target Exceeded</span>
+              </div>
+              <div className="w-full bg-slate-800 h-1 rounded-full mt-3 overflow-hidden">
+                <div className="bg-amber-500 h-1 rounded-full w-[92%]"></div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Grievance Clearance</span>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl font-extrabold text-purple-400">88.2%</span>
+                <span className="text-[9px] text-slate-400 font-semibold">1,245 cases resolved</span>
+              </div>
+              <div className="w-full bg-slate-800 h-1 rounded-full mt-3 overflow-hidden">
+                <div className="bg-purple-500 h-1 rounded-full w-[88%]"></div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl flex flex-col justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SPARROW Aadhaar e-Signs</span>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-2xl font-extrabold text-emerald-400">Synced</span>
+                <span className="text-[9px] text-emerald-400 font-semibold">HSM Secure</span>
+              </div>
+              <div className="w-full bg-slate-800 h-1 rounded-full mt-3 overflow-hidden">
+                <div className="bg-emerald-500 h-1 rounded-full w-[100%]"></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Chart 1: Latency & Throughput over time */}
+            <div className="lg:col-span-2 p-5 bg-slate-950/20 border border-slate-800 rounded-2xl flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-300 block">Ministerial File Clearance & Dispatch Volume</span>
+                <span className="text-[10px] text-slate-500">Compares daily files received against files successfully signed and dispatched</span>
+              </div>
+              <div className="h-56 w-full mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={throughputData}>
+                    <defs>
+                      <linearGradient id="colorThroughput" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorLatency" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="time" tick={{ fontSize: 9, fill: '#64748b' }} stroke="#334155" />
+                    <YAxis tick={{ fontSize: 9, fill: '#64748b' }} stroke="#334155" />
+                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', fontSize: 11 }} />
+                    <Legend wrapperStyle={{ fontSize: 10 }} />
+                    <Area type="monotone" dataKey="dispatched" name="Files Dispatched" stroke="#3b82f6" fillOpacity={1} fill="url(#colorThroughput)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="received" name="Files Received" stroke="#f59e0b" fillOpacity={1} fill="url(#colorLatency)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Chart 2: System Health Radar */}
+            <div className="p-5 bg-slate-950/20 border border-slate-800 rounded-2xl flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-300 block">Ministerial DPI Indicators</span>
+                <span className="text-[10px] text-slate-500">Balance of key departmental indicators across the ministry</span>
+              </div>
+              <div className="h-56 w-full mt-4 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                    <PolarGrid stroke="#334155" />
+                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 8, fill: '#475569' }} />
+                    <Radar name="Performance Score" dataKey="A" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.4} />
+                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', fontSize: 11 }} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Live System Logs Console */}
+          <div className="p-4 bg-black/60 border border-slate-800 rounded-2xl font-mono text-[10px] text-slate-300 space-y-1.5 max-h-[120px] overflow-y-auto">
+            <span className="text-[9px] font-bold text-blue-400 block tracking-wider uppercase mb-1">Live Administrative Event Stream</span>
+            {systemLogs.map((log, index) => (
+              <div key={index} className="flex gap-2">
+                <span className="text-slate-500">{">>>"}</span>
+                <span className={log.includes('Failed') || log.includes('Warning') ? 'text-red-400' : log.includes('handshake') || log.includes('verified') || log.includes('dispatched') ? 'text-green-400' : 'text-slate-300'}>
+                  {log}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Explainable Delay Risk List */}
         <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm">

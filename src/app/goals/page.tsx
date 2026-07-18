@@ -52,6 +52,21 @@ interface Goal {
   completedTasks: number;
 }
 
+const DelayTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-slate-900 text-white p-3 rounded-lg shadow-lg border border-slate-700 max-w-xs text-xs leading-normal">
+        <p className="font-bold text-amber-400">[{data.type}] {data.fullName}</p>
+        <p className="mt-1 font-semibold">Days Delayed: <span className="text-red-400">{data.daysDelayed} days</span></p>
+        <p className="text-slate-400">Target SLA Date: {data.date}</p>
+        <p className="mt-1.5 text-slate-300 font-medium italic">"{data.reason}"</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function GoalsPage() {
   const { currentUser, users } = useSession();
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -64,6 +79,7 @@ export default function GoalsPage() {
   // Analytics panel state
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [goalTasks, setGoalTasks] = useState<any[]>([]);
+  const [delayData, setDelayData] = useState<any[]>([]);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   // Weights config state
@@ -207,18 +223,74 @@ export default function GoalsPage() {
   const handleOpenAnalytics = async (goal: Goal) => {
     setSelectedGoal(goal);
     setLoadingAnalytics(true);
+    setDelayData([]);
     try {
-      // In a real database, we would query tasks linked to goalId.
-      // We will search for tasks via a simple mock query or get them.
-      const res = await fetch(`/api/tasks?userId=${currentUser?.id}`); // mock search
-      if (res.ok) {
-        const data = await res.json();
-        // filter tasks that match goalId
-        const filteredTasks = data.filter((t: any) => t.goalId === goal.id);
+      // 1. Fetch tasks
+      const resTasks = await fetch(`/api/tasks?userId=${currentUser?.id}`);
+      let filteredTasks: any[] = [];
+      if (resTasks.ok) {
+        const data = await resTasks.json();
+        filteredTasks = data.filter((t: any) => t.goalId === goal.id);
         setGoalTasks(filteredTasks);
       }
+
+      // 2. Fetch files for delay tracking
+      let filesUrl = '/api/files?all=true&status=pending';
+      if (goal.ownerType === 'individual') {
+        filesUrl = `/api/files?userId=${goal.ownerId}&status=pending`;
+      }
+      
+      const resFiles = await fetch(filesUrl);
+      let files: any[] = [];
+      if (resFiles.ok) {
+        files = await resFiles.json();
+      }
+
+      // 3. Compile delays from both tasks and files
+      const delayItems: any[] = [];
+      
+      // Add delayed tasks
+      filteredTasks.forEach((t: any) => {
+        const taskDeadline = new Date(t.deadline);
+        if (t.status !== 'done' && taskDeadline < new Date()) {
+          const daysDelayed = Math.floor((Date.now() - taskDeadline.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysDelayed > 0) {
+            delayItems.push({
+              name: t.description.length > 25 ? t.description.slice(0, 25) + '...' : t.description,
+              fullName: t.description,
+              daysDelayed,
+              reason: "Pending task resource clearance & dependency resolving.",
+              date: taskDeadline.toLocaleDateString(),
+              type: 'Task'
+            });
+          }
+        }
+      });
+
+      // Add delayed files
+      files.forEach((file: any) => {
+        const created = new Date(file.createdAt);
+        const due = new Date(created.getTime() + file.slaCategoryDays * 24 * 60 * 60 * 1000);
+        if (due < new Date()) {
+          const daysDelayed = Math.floor((Date.now() - due.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysDelayed > 0) {
+            delayItems.push({
+              name: file.subject.length > 25 ? file.subject.slice(0, 25) + '...' : file.subject,
+              fullName: file.subject,
+              daysDelayed,
+              reason: file.employeeReason || "Processing backlog queue.",
+              date: due.toLocaleDateString(),
+              type: 'File'
+            });
+          }
+        }
+      });
+
+      // Sort by delayed days ascending
+      delayItems.sort((a, b) => a.daysDelayed - b.daysDelayed);
+      setDelayData(delayItems);
     } catch (err) {
-      console.error(err);
+      console.error("Error opening analytics:", err);
     } finally {
       setLoadingAnalytics(false);
     }
@@ -510,6 +582,40 @@ export default function GoalsPage() {
                         <Line type="monotone" dataKey="progress" stroke="#1e3a8a" strokeWidth={3} name="Progress" />
                       </LineChart>
                     </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* SLA Workload Delay Analytics */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse"></span>
+                    SLA Workload Delay Analysis (Tasks & Files)
+                  </h4>
+                  <div className="h-44 w-full bg-slate-50 border border-slate-100 rounded-xl p-3">
+                    {delayData.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-slate-400 text-center text-xs">
+                        <CheckCircle className="h-6 w-6 text-green-500 mb-1" />
+                        <span>All associated tasks and files are within SLA limits.</span>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={delayData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="name" stroke="#94a3b8" style={{ fontSize: '9px' }} tickFormatter={(val) => val && val.length > 12 ? val.slice(0, 10) + '...' : val} />
+                          <YAxis label={{ value: 'Days Delayed', angle: -90, position: 'insideLeft', style: { fontSize: '9px', fill: '#94a3b8', fontWeight: 'bold' } }} stroke="#94a3b8" style={{ fontSize: '9px' }} />
+                          <Tooltip content={<DelayTooltip />} />
+                          <Line 
+                            type="monotone" 
+                            dataKey="daysDelayed" 
+                            stroke="#dc2626" 
+                            strokeWidth={2.5} 
+                            name="Days Delayed"
+                            activeDot={{ r: 6 }} 
+                            dot={{ r: 4, fill: '#dc2626', stroke: '#fff', strokeWidth: 2 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
                 </div>
 

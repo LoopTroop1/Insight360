@@ -362,7 +362,7 @@ export default function SecretaryPage() {
                       <td className="py-3 text-center text-slate-500">{dept.backlog} files</td>
                       <td className="py-3 text-right">
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                          dept.status === 'Healthy'
+                          dept.status === 'Active'
                             ? 'bg-green-100 text-green-800 border border-green-200'
                             : 'bg-red-100 text-red-800 border border-red-200'
                         }`}>
