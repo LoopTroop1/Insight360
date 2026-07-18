@@ -16,3 +16,7 @@ services:
         value: production
       - key: NEXTAUTH_SECRET
         generateValue: true
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
