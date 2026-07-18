@@ -129,6 +129,7 @@ export async function GET(request: Request) {
           peerAvg: parseFloat(deptAvg.toFixed(1)),
           benchmarkIndex: benchmarkIdx,
           avgResolutionTime: uKpi ? parseFloat(uKpi.avgResolutionTime.toFixed(1)) : 3.5,
+          helpingScore: u.helpingScore || 0,
           rank: 1 // compiled dynamically on client
         };
       });
@@ -137,6 +138,16 @@ export async function GET(request: Request) {
     benchmarkData.sort((a, b) => b.score - a.score);
     benchmarkData.forEach((item, index) => {
       item.rank = index + 1;
+    });
+
+    const redistributionEvents = await db.burnoutShieldEvent.findMany({
+      include: {
+        officer: {
+          include: { department: true }
+        },
+        reassignedTo: true
+      },
+      orderBy: { createdAt: 'desc' }
     });
 
     return NextResponse.json({
@@ -157,7 +168,8 @@ export async function GET(request: Request) {
       deptRankings,
       benchmarkData,
       departments,
-      citizenRecords
+      citizenRecords,
+      redistributionEvents
     });
   } catch (error) {
     console.error('Error compiling admin dashboard payload:', error);

@@ -34,7 +34,8 @@ import {
   CheckCircle2,
   RefreshCw,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Sparkles
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -47,6 +48,7 @@ interface DashboardData {
   engagement: any;
   notifications: any[];
   upcomingDeadlines: any[];
+  workloadEvents: any[];
 }
 
 export default function OfficerPage() {
@@ -70,6 +72,56 @@ export default function OfficerPage() {
 
   // Task inline update state
   const [updatingTaskId, setUpdatingTaskId] = useState<number | null>(null);
+
+  // Workload Assistance request hooks
+  const [workloadTab, setWorkloadTab] = useState<'incoming' | 'outgoing' | 'accepted' | 'declined' | 'history'>('incoming');
+  const [activeWorkloadEventId, setActiveWorkloadEventId] = useState<number | null>(null);
+  const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
+  const [declineReasonText, setDeclineReasonText] = useState('Already handling urgent work');
+  const [processingWorkload, setProcessingWorkload] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleWorkloadRequestAction = async (eventId: number, action: 'accept' | 'decline') => {
+    if (!currentUser) return;
+    setProcessingWorkload(true);
+    try {
+      const res = await fetch('/api/burnout-shield/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId,
+          actorId: currentUser.id,
+          action,
+          declineReason: action === 'decline' ? declineReasonText : undefined
+        })
+      });
+
+      if (res.ok) {
+        const payload = await res.json();
+        if (action === 'accept') {
+          confetti({
+            particleCount: 65,
+            spread: 45,
+            origin: { y: 0.8 }
+          });
+          setToastMessage('Workload accepted! Files successfully transferred.');
+        } else {
+          setToastMessage(payload.fallbackExecuted
+            ? 'Request declined. No other peers available. Fallback policy executed.'
+            : 'Request declined. Workload escalated to the next ranked officer.');
+        }
+        setTimeout(() => setToastMessage(null), 4000);
+        setIsDeclineModalOpen(false);
+        fetchDashboardData();
+      } else {
+        alert('Failed to process workload request action.');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setProcessingWorkload(false);
+    }
+  };
 
   useEffect(() => {
     setIsMounted(true);
@@ -612,6 +664,211 @@ export default function OfficerPage() {
           </div>
 
         </div>
+
+        {/* Workload Assistance Panel */}
+        <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-1.5">
+                <HeartHandshake className="h-4.5 w-4.5 text-blue-900" />
+                Workload Assistance Center
+              </h3>
+              <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                Manage, review, and dispatch collaborative queue redistribution requests across team colleagues.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1 bg-slate-50 border border-slate-200 rounded-xl p-1 text-[10px] font-bold">
+              {[
+                { key: 'incoming', label: 'Incoming' },
+                { key: 'outgoing', label: 'Outgoing' },
+                { key: 'accepted', label: 'Accepted' },
+                { key: 'declined', label: 'Declined' },
+                { key: 'history', label: 'History' }
+              ].map(tab => {
+                const count = 
+                  tab.key === 'incoming' ? (data.workloadEvents?.filter((e: any) => e.currentRecipientId === currentUser?.id && e.status === 'proposed').length || 0) :
+                  tab.key === 'outgoing' ? (data.workloadEvents?.filter((e: any) => e.officerId === currentUser?.id && e.status === 'proposed').length || 0) :
+                  tab.key === 'accepted' ? (data.workloadEvents?.filter((e: any) => e.reassignedToId === currentUser?.id && e.status === 'auto_executed' && e.officerId !== currentUser?.id).length || 0) :
+                  tab.key === 'declined' ? (data.workloadEvents?.filter((e: any) => e.officerId === currentUser?.id && e.declineReasons && e.declineReasons !== '{}').length || 0) :
+                  (data.workloadEvents?.filter((e: any) => e.status === 'auto_executed').length || 0);
+
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setWorkloadTab(tab.key as any)}
+                    className={`px-3 py-1.5 rounded-lg transition-all ${
+                      workloadTab === tab.key
+                        ? 'bg-blue-900 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    {tab.label} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Render Cards by Tab */}
+          <div className="space-y-3">
+            {(() => {
+              const filtered = (data.workloadEvents || []).filter((e: any) => {
+                if (workloadTab === 'incoming') return e.currentRecipientId === currentUser?.id && e.status === 'proposed';
+                if (workloadTab === 'outgoing') return e.officerId === currentUser?.id && e.status === 'proposed';
+                if (workloadTab === 'accepted') return e.reassignedToId === currentUser?.id && e.status === 'auto_executed' && e.officerId !== currentUser?.id;
+                if (workloadTab === 'declined') return e.officerId === currentUser?.id && e.declineReasons && e.declineReasons !== '{}';
+                return e.status === 'auto_executed';
+              });
+
+              if (filtered.length === 0) {
+                return <div className="text-center py-10 text-xs text-slate-400 font-medium">No workload requests in this category.</div>;
+              }
+
+              return filtered.map((e: any) => {
+                let metadata = { effort: 'Medium', priority: 'High', expectedCompletion: '3 Days', project: 'Core Ops' };
+                try {
+                  if (e.metadataJson) {
+                    const parsed = JSON.parse(e.metadataJson);
+                    metadata = {
+                      effort: parsed.estimatedEffort || 'Medium',
+                      priority: parsed.priority || 'High',
+                      expectedCompletion: '3 Days',
+                      project: parsed.affectedProject || 'Core Ops'
+                    };
+                  }
+                } catch (err) {}
+
+                const fileCount = e.filesReassigned.split(',').length;
+
+                return (
+                  <div key={e.id} className="p-4 bg-slate-50 hover:bg-slate-100/50 border border-slate-200 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
+                    <div className="space-y-1.5 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-bold text-slate-800">
+                          {workloadTab === 'incoming' ? `From: Officer ${e.officer?.name}` : workloadTab === 'outgoing' ? `Assigned To: Queue Recipient ID #${e.currentRecipientId || 'N/A'}` : `Balancing Event #${e.id}`}
+                        </span>
+                        <span className="text-[10px] bg-slate-200/80 px-2 py-0.5 rounded text-slate-500 font-bold">
+                          {e.officer?.department?.name || 'Department'}
+                        </span>
+                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase ${
+                          metadata.priority === 'High' || metadata.priority === 'CRITICAL' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {metadata.priority}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-normal font-medium">
+                        Files Requested: <strong className="text-slate-800 font-bold">{fileCount} files</strong> | Target Project: <span className="font-semibold">{metadata.project}</span>
+                      </p>
+                      <div className="text-[10px] text-slate-400 font-semibold flex flex-wrap gap-x-3 gap-y-1">
+                        <span>AI Match Score: <strong className="text-purple-600 font-extrabold">97%</strong></span>
+                        <span>•</span>
+                        <span>Expected Effort: <strong>{metadata.effort}</strong></span>
+                        <span>•</span>
+                        <span>Expected Completion: <strong>{metadata.expectedCompletion}</strong></span>
+                        {workloadTab === 'declined' && (
+                          <>
+                            <span>•</span>
+                            <span className="text-red-500 italic">Decline Logs: {e.declineReasons}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {workloadTab === 'incoming' && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleWorkloadRequestAction(e.id, 'accept')}
+                          disabled={processingWorkload}
+                          className="px-3.5 py-1.5 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-lg text-[10px] shadow-sm transition-all"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveWorkloadEventId(e.id);
+                            setIsDeclineModalOpen(true);
+                          }}
+                          disabled={processingWorkload}
+                          className="px-3.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold rounded-lg text-[10px] transition-all"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    )}
+
+                    {workloadTab !== 'incoming' && (
+                      <div className="text-[10px] font-bold uppercase shrink-0 text-slate-400 bg-slate-200/50 px-2.5 py-1 rounded-lg">
+                        {e.status === 'auto_executed' ? 'Completed' : 'Pending Review'}
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+
+        {/* Decline Reason Modal for Workspace */}
+        {isDeclineModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-b border-slate-200">
+                <div className="flex items-center gap-2 text-red-800">
+                  <AlertCircle className="h-5 w-5" />
+                  <span className="font-bold text-base">Decline Workload Assistance</span>
+                </div>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-xs text-slate-500">
+                  Declining this request escalates it to the next ranked officer. Select your constraint:
+                </p>
+                <div className="space-y-2">
+                  {[
+                    'Already handling urgent work',
+                    'On leave soon',
+                    'Lack of expertise',
+                    'Current workload capacity exceeded',
+                    'Other operational constraint'
+                  ].map(reason => (
+                    <label key={reason} className="flex items-center gap-2.5 p-2 bg-slate-50 hover:bg-slate-100 rounded-lg cursor-pointer text-xs font-semibold text-slate-700">
+                      <input
+                        type="radio"
+                        name="declineReasonText"
+                        checked={declineReasonText === reason}
+                        onChange={() => setDeclineReasonText(reason)}
+                        className="text-blue-900 focus:ring-blue-900"
+                      />
+                      {reason}
+                    </label>
+                  ))}
+                </div>
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => setIsDeclineModalOpen(false)}
+                    className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => activeWorkloadEventId && handleWorkloadRequestAction(activeWorkloadEventId, 'decline')}
+                    disabled={processingWorkload}
+                    className="px-4.5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-md"
+                  >
+                    Confirm Decline
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Workspace Toast */}
+        {toastMessage && (
+          <div className="fixed bottom-5 right-5 bg-slate-900 border border-slate-800 text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 z-50 animate-in fade-in slide-in-from-bottom-5">
+            <Sparkles className="h-5 w-5 text-amber-400" />
+            <span className="text-xs font-bold">{toastMessage}</span>
+          </div>
+        )}
 
         {/* Workload Help Request Modal */}
         {isHelpModalOpen && (

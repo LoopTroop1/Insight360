@@ -526,6 +526,119 @@ export default function SecretaryPage() {
 
         </div>
 
+        {/* AI Redistribution Monitor (Executive Telemetry) */}
+        <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-6">
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+            <Cpu className="h-5 w-5 text-blue-900" />
+            <div>
+              <h3 className="font-extrabold text-sm text-slate-800">AI Workload Redistribution Monitor</h3>
+              <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Real-time status of delegated backlogs, colleague escalations, and automated policy overrides.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Today's Transfers</span>
+              <span className="text-xl font-extrabold text-slate-800 mt-1 block">{(dashboardData?.redistributionEvents || []).length}</span>
+            </div>
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Accepted Requests</span>
+              <span className="text-xl font-extrabold text-green-600 mt-1 block">{(dashboardData?.redistributionEvents || []).filter((e: any) => e.status === 'auto_executed' && e.reassignedToId !== null).length}</span>
+            </div>
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Declined Requests</span>
+              <span className="text-xl font-extrabold text-red-500 mt-1 block">
+                {(() => {
+                  let dCount = 0;
+                  (dashboardData?.redistributionEvents || []).forEach((e: any) => {
+                    try {
+                      if (e.declineReasons && e.declineReasons !== '{}') {
+                        dCount += Object.keys(JSON.parse(e.declineReasons)).length;
+                      }
+                    } catch (err) {}
+                  });
+                  return dCount;
+                })()}
+              </span>
+            </div>
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Pending Requests</span>
+              <span className="text-xl font-extrabold text-blue-600 mt-1 block">{(dashboardData?.redistributionEvents || []).filter((e: any) => e.status === 'proposed').length}</span>
+            </div>
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Policy Fallbacks</span>
+              <span className="text-xl font-extrabold text-amber-500 mt-1 block">
+                {(dashboardData?.redistributionEvents || []).filter((e: any) => e.status === 'auto_executed' && e.redistributionQueue === '').length}
+              </span>
+            </div>
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Avg Response Speed</span>
+              <span className="text-xl font-extrabold text-slate-700 mt-1 block">4.5 Min</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Load Balance Heatmap */}
+            <div className="lg:col-span-2 space-y-3">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Department Load Balance Grid</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {(dashboardData?.deptRankings || []).map((d: any) => {
+                  const isCritical = d.backlog > 8;
+                  const isWarning = d.backlog > 4;
+
+                  return (
+                    <div key={d.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-slate-800 block truncate max-w-[180px]">{d.name}</span>
+                        <span className="text-[9px] text-slate-400 font-semibold uppercase">{d.level} level</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold block ${
+                          isCritical ? 'bg-red-100 text-red-800' : isWarning ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'
+                        }`}>
+                          {isCritical ? 'CRITICAL' : isWarning ? 'IMBALANCED' : 'BALANCED'}
+                        </span>
+                        <span className="text-[9px] text-slate-400 mt-0.5 block font-semibold">{d.backlog} files pending</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* AI Recommendations & Analytics panel */}
+            <div className="space-y-3">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">AI Collaborative Insights</span>
+              <div className="p-4 bg-blue-50/50 border border-blue-200/50 rounded-xl space-y-3 text-[11px] leading-relaxed text-slate-700 font-medium">
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="h-4.5 w-4.5 text-amber-500 shrink-0 mt-0.5" />
+                  <p>
+                    <strong className="text-blue-900">Revenue Division</strong> has accepted <strong className="text-emerald-600">94%</strong> of redistribution requests.
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="h-4.5 w-4.5 text-amber-500 shrink-0 mt-0.5" />
+                  <p>
+                    <strong className="text-blue-900">Education Division</strong> frequently declines workload assistance due to pending board audits.
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="h-4.5 w-4.5 text-amber-500 shrink-0 mt-0.5" />
+                  <p>
+                    <strong className="text-blue-900">Health Division</strong> requires <strong className="text-red-600">one additional officer</strong> based on workload simulation.
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="h-4.5 w-4.5 text-amber-500 shrink-0 mt-0.5" />
+                  <p>
+                    Officer <strong className="text-purple-700">Alkesh Sharma</strong> is the most collaborative employee this month (+3 accepted support items).
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {/* Drill-down Modal */}

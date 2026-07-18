@@ -18,6 +18,7 @@ model User {
   designation     String
   joinedDate      DateTime         @default(now())
   avatarUrl       String?
+  helpingScore    Int              @default(0)
   
   // Relations
   createdFiles    File[]           @relation("CreatedBy")
@@ -187,15 +188,19 @@ model DigitalTwinSimulation {
 }
 
 model BurnoutShieldEvent {
-  id              Int      @id @default(autoincrement())
-  officerId       Int
-  officer         User     @relation("BurnoutOfficer", fields: [officerId], references: [id])
-  triggerReason   String
-  filesReassigned String   // Comma-separated list of file IDs reassigned
-  reassignedToId  Int?
-  reassignedTo    User?    @relation("BurnoutReassignedTo", fields: [reassignedToId], references: [id])
-  status          String   // "proposed", "auto_executed", "reverted"
-  createdAt       DateTime @default(now())
+  id                  Int      @id @default(autoincrement())
+  officerId           Int
+  officer             User     @relation("BurnoutOfficer", fields: [officerId], references: [id])
+  triggerReason       String
+  filesReassigned     String   // Comma-separated list of file IDs reassigned
+  reassignedToId      Int?
+  reassignedTo        User?    @relation("BurnoutReassignedTo", fields: [reassignedToId], references: [id])
+  status              String   // "proposed", "auto_executed", "reverted"
+  createdAt           DateTime @default(now())
+  redistributionQueue String?  // Comma-separated user IDs left to check
+  currentRecipientId  Int?     // Current recipient being asked
+  declineReasons      String?  // JSON string: { userId: reason }
+  metadataJson        String?  // JSON string: { prodGain: 4, backlogRed: 18, waitDaysRed: 2 }
 }
 
 model CitizenServiceRecord {

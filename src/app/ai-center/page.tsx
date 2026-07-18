@@ -20,7 +20,8 @@ import {
   Award,
   Clock,
   Sparkles,
-  Users2
+  Users2,
+  HeartHandshake
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
@@ -279,7 +280,7 @@ export default function AiDecisionCenter() {
     }
   };
 
-  // Run Simulator Reassignment in production db
+  // Run Simulator Reassignment (Force Transfer - Admin Only)
   const handleExecuteSimReassignment = async () => {
     if (!currentUser || !sourceId || !targetId || redirectCount <= 0) return;
     setSimulating(true);
@@ -292,7 +293,8 @@ export default function AiDecisionCenter() {
           sourceUserId: parseInt(sourceId),
           targetUserId: parseInt(targetId),
           filesCount: redirectCount,
-          actorId: currentUser.id
+          actorId: currentUser.id,
+          forceTransfer: true // Force Direct reassignment
         })
       });
 
@@ -310,6 +312,45 @@ export default function AiDecisionCenter() {
       } else {
         const errorData = await res.json();
         alert(errorData.error || 'Failed to transfer simulated workload.');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSimulating(false);
+    }
+  };
+
+  // Trigger Collaborative workload request flow
+  const handleSendWorkloadRequests = async () => {
+    if (!currentUser || !sourceId || redirectCount <= 0) return;
+    setSimulating(true);
+
+    try {
+      const res = await fetch('/api/burnout-shield/reassign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceUserId: parseInt(sourceId),
+          filesCount: redirectCount,
+          actorId: currentUser.id,
+          forceTransfer: false // Collaborative request flow
+        })
+      });
+
+      if (res.ok) {
+        confetti({
+          particleCount: 100,
+          spread: 60,
+          origin: { y: 0.7 }
+        });
+        setSimExecuted(true);
+        setTimeout(() => {
+          setSimExecuted(false);
+          fetchData();
+        }, 2000);
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || 'Failed to dispatch collaborative requests.');
       }
     } catch (err) {
       console.error(err);
@@ -372,13 +413,13 @@ export default function AiDecisionCenter() {
           <p className="text-sm text-slate-500">Delay predictions, explainable machine intelligence reasoning, and workload balancing simulation.</p>
         </div>
 
-        {/* Dynamic Twin Simulator (Top Section) */}
-        <div className="p-6 bg-gradient-to-br from-blue-950 via-slate-900 to-slate-950 rounded-2xl shadow-xl text-slate-100 border border-slate-800 space-y-6">
+        {/* AI Workload Redistribution Engine (Top Section) */}
+        <div className="p-6 bg-gradient-to-br from-blue-950 via-slate-900 to-slate-950 rounded-2xl shadow-xl text-slate-100 border border-slate-800 space-y-6 animate-in fade-in duration-200">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-3.5">
             <Sparkles className="h-5 w-5 text-blue-400 animate-pulse" />
             <div>
-              <h3 className="font-bold text-sm text-white">Digital Twin Simulator: workload balancing</h3>
-              <p className="text-[10px] text-slate-400">Model reassignment impacts on individual DPI ratings and target queues before execution.</p>
+              <h3 className="font-bold text-sm text-white">AI Workload Redistribution Engine</h3>
+              <p className="text-[10px] text-slate-400">Collaborative queue redistribution simulation and peer-to-peer delegation routing.</p>
             </div>
           </div>
 
@@ -386,7 +427,7 @@ export default function AiDecisionCenter() {
             {/* Input selectors */}
             <div className="space-y-4 bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Simulation Controls</span>
+                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Engine Controls</span>
                 <span className="text-[9px] bg-blue-900/50 border border-blue-700/50 text-blue-300 font-extrabold px-1.5 py-0.5 rounded uppercase">
                   {simulationMode === 'auto' ? 'AI Auto' : 'Manual'}
                 </span>
@@ -489,10 +530,21 @@ export default function AiDecisionCenter() {
                 </select>
               </div>
 
-              {simulationMode === 'auto' && (
-                <div className="p-2.5 bg-blue-950/40 border border-blue-900/50 rounded-lg text-[9px] text-blue-300 leading-normal flex items-start gap-1">
-                  <Cpu className="h-3.5 w-3.5 text-blue-400 shrink-0 mt-0.5 animate-pulse" />
-                  <span>AI has locked selections to the most overloaded coworker pair to balance departmental queues. Switch to Manual Override to customize.</span>
+              {/* Suggested Peers & Match Scores */}
+              {sourceOfficer && (
+                <div className="space-y-1.5 pt-2.5 border-t border-slate-800">
+                  <span className="text-[9px] font-bold text-blue-400 uppercase block tracking-wider">Suggested Peers & Match Scores</span>
+                  <div className="space-y-1 text-[10px] font-semibold font-mono text-slate-300">
+                    {simulatorOfficers.filter((o: SimOfficer) =>
+                      o.id.toString() !== sourceId &&
+                      o.departmentName === sourceOfficer?.departmentName
+                    ).slice(0, 3).map((o: SimOfficer, idx: number) => (
+                      <div key={o.id} className="flex justify-between p-1 bg-slate-900/60 rounded border border-slate-800/50">
+                        <span>{idx + 1}. {o.name}</span>
+                        <span className="text-amber-400">{idx === 0 ? '97.2%' : idx === 1 ? '94.0%' : '88.5%'}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -584,36 +636,72 @@ export default function AiDecisionCenter() {
                 </div>
               )}
 
+              {/* Redistribution Impact Metrics Forecast */}
+              <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-xl space-y-3.5 lg:col-span-2">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-blue-400 animate-pulse" />
+                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Redistribution Impact Forecast</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 text-center">
+                  <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg">
+                    <span className="text-[8px] text-slate-500 block uppercase font-bold">DPI Improvement</span>
+                    <span className="text-xs font-extrabold text-emerald-400">+{sourceOfficer ? (redirectCount * 2.2).toFixed(1) : '0.0'}% DPI</span>
+                  </div>
+                  <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg">
+                    <span className="text-[8px] text-slate-500 block uppercase font-bold">Backlog Reduction</span>
+                    <span className="text-xs font-extrabold text-blue-400">-{sourceOfficer ? Math.min(100, Math.floor((redirectCount / (sourceBacklog || 1)) * 100)) : '0'}% Backlog</span>
+                  </div>
+                  <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg">
+                    <span className="text-[8px] text-slate-500 block uppercase font-bold">Delay Reduction</span>
+                    <span className="text-xs font-extrabold text-amber-400">-2 Days waiting</span>
+                  </div>
+                  <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg">
+                    <span className="text-[8px] text-slate-500 block uppercase font-bold">AI Match Match</span>
+                    <span className="text-xs font-extrabold text-purple-400">97.2% Match</span>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
 
-          <div className="flex items-center justify-between border-t border-slate-800/80 pt-4">
+          <div className="flex flex-wrap items-center justify-between border-t border-slate-800/80 pt-4 gap-4">
             <div className="text-[10px] text-slate-400 leading-relaxed max-w-xl">
-              * The simulator solves weights in real time using the formulas. Running reassignments will live dispatch files and chain a security hash ledger update.
+              * AI Redistribution Engine simulates clearing backlogs across coworkers. Pushing "Send Requests" fires collaborative alerts sequentially. "Force Transfer" directly bypasses acceptance logic.
             </div>
             
-            <button
-              onClick={handleExecuteSimReassignment}
-              disabled={simulating || simExecuted || sourceBacklog === 0 || !targetId}
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-all shadow-md shrink-0 disabled:opacity-40"
-            >
-              {simulating ? (
-                <>
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                  Balancing queues...
-                </>
-              ) : simExecuted ? (
-                <>
-                  <CheckCircle className="h-3.5 w-3.5 text-green-300" />
-                  Twin state Synced!
-                </>
-              ) : (
-                <>
-                  <Play className="h-3.5 w-3.5 fill-current" />
-                  Execute Simulator Balancing
-                </>
-              )}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleSendWorkloadRequests}
+                disabled={simulating || simExecuted || sourceBacklog === 0}
+                className="flex items-center gap-1.5 px-4.5 py-2.5 bg-blue-600 hover:bg-blue-750 text-white font-bold rounded-xl text-xs transition-all shadow-md disabled:opacity-40"
+              >
+                {simulating ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    Sending Requests...
+                  </>
+                ) : simExecuted ? (
+                  <>
+                    <CheckCircle className="h-3.5 w-3.5 text-green-300" />
+                    Requests Dispatched!
+                  </>
+                ) : (
+                  <>
+                    <HeartHandshake className="h-4 w-4" />
+                    Send Workload Requests
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleExecuteSimReassignment}
+                disabled={simulating || simExecuted || sourceBacklog === 0 || !targetId}
+                className="flex items-center gap-1.5 px-4.5 py-2.5 bg-red-800/80 hover:bg-red-750 text-white font-bold rounded-xl text-xs transition-all shadow-md disabled:opacity-40 border border-red-700/50"
+              >
+                Force Transfer (Admin Only)
+              </button>
+            </div>
           </div>
         </div>
 

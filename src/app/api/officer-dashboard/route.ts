@@ -94,7 +94,23 @@ export async function GET(request: Request) {
       })),
       engagement,
       notifications,
-      upcomingDeadlines
+      upcomingDeadlines,
+      workloadEvents: await db.burnoutShieldEvent.findMany({
+        where: {
+          OR: [
+            { officerId: userId },
+            { currentRecipientId: userId },
+            { reassignedToId: userId }
+          ]
+        },
+        include: {
+          officer: {
+            include: { department: true }
+          },
+          reassignedTo: true
+        },
+        orderBy: { createdAt: 'desc' }
+      })
     });
   } catch (error) {
     console.error('Error fetching officer dashboard payload:', error);
