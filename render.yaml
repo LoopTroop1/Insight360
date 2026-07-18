@@ -3,11 +3,11 @@ services:
     name: eoffice-pro
     runtime: node
     plan: free
-    buildCommand: npx prisma generate && npm run build
-    startCommand: npx prisma db push --accept-data-loss && npm run start
+    buildCommand: npx prisma generate && npx prisma db push --accept-data-loss && npm run build
+    startCommand: npm run start
     envVars:
       - key: DATABASE_URL
-        value: file:./dev.db
+        value: file:/opt/render/project/src/prisma/dev.db
       - key: NODE_ENV
         value: production
       - key: NEXTAUTH_SECRET
