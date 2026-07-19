@@ -1,26 +1,40 @@
-# 📊 Insight360 (e-Office Pro)
+# 📊 e-Office Pro (Insight360)
 
-> **Next-Generation GovTech Performance Analytics & Explainable Decision-Support System**
+> **Next-Generation GovTech Performance Analytics & AI-Assisted Collaborative Redistribution System**
 
-Insight360 (e-Office Pro) is a real-time, intelligence-driven performance monitoring and wellness-protection ecosystem designed to overlay standard government e-Office software. Rather than just tracking files, Insight360 introduces role-based workspaces, data-backed benchmarks, explainable AI risk engines, and a tamper-evident audit vault.
+e-Office Pro (Insight360) is a real-time, intelligence-driven performance monitoring and wellness-protection ecosystem designed to overlay standard government e-Office software. Rather than just tracking files, e-Office Pro introduces role-based workspaces, data-backed benchmarks, explainable AI risk engines, and a tamper-evident cryptographic audit vault.
+
+### 🌐 Live Platform Link
+Deploy active on Render: **[https://eoffice-pro.onrender.com](https://eoffice-pro.onrender.com)**
+
+[![Platform Status](https://img.shields.io/badge/Platform-Live-success?style=for-the-badge&logo=render&logoColor=white)](https://eoffice-pro.onrender.com)
+[![Framework](https://img.shields.io/badge/Next.js-14-blue?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![Database](https://img.shields.io/badge/Prisma-SQLite-f1f5f9?style=for-the-badge&logo=prisma&logoColor=123a8a)](https://www.prisma.io/)
 
 ---
 
-## 🚀 Key Features
+## 🚀 Key Feature Upgrades (Session 4)
 
-### 🏢 Persona-Based Workspaces
-*   **Secretary / Administrator Dashboard**: High-level organizational oversight. Monitors the Departmental Productivity Index ($DPI$), tracks departments at risk, views citizen satisfaction scores, and receives high-priority AI-generated alerts.
+### 🤝 AI-Assisted Collaborative Workload Redistribution System
+Instead of automatic background file reassignments, e-Office Pro implements a collaborative team-based workflow:
+1.  **AI Redirection Queue**: When an officer is overloaded, the system computes compatible department candidates, ranks them using their turnaround metrics, and creates a sequential queue.
+2.  **Interactive Requests**: Peer candidates receive real-time, interactive alerts in their **Notification Center** and **Workspace** showing predicted effort, deadlines, and digital twin impact forecasts.
+3.  **Collaborative Accept**: Candidates can **Accept** the files (earning badge points and incrementing their `helpingScore`) or **Decline** (inputting constraint reasons, which automatically triggers sequential escalation to the next peer in the queue).
+4.  **Policy-Based Fallback**: If the queue is exhausted, the engine automatically assigns files based on departmental backlog safety guidelines and logs the fallback transaction.
+
+### 🏆 Government Performance League Table (Benchmark Center)
+Upgraded the **Benchmark Center** into an executive performance index console:
+*   **3D/2D Highlight Metrics**: Instantly reports the Best Performing Department, Lowest Backlog Region, Fastest File Resolver, and standard compliance rate (DPI $\ge 70\%$).
+*   **Performance Telemetry Tabs**: Integrates Composed Productivity Charts, Resolution Speed Leaders, and Regional Backlog Heatmaps.
+*   **Help Score Rankings**: Features the **Helping Leaders** table tracking officers' collaborative contributions and awarding badges (`🥇 Support Champion`, `🥈 Collaborative Officer`, `🥉 Workload Hero`).
+
+---
+
+## 🏢 Persona-Based Workspaces
+
+*   **Secretary / Executive Dashboard**: High-level organizational oversight. Monitors the Departmental Productivity Index ($DPI$), tracks departments at risk, views citizen satisfaction scores, and reviews the **AI Redistribution Monitor** to audit queue redirections.
 *   **Team Leader Workspace**: Visualizes team bandwidth, handles file forward/reject actions, reviews burnout shields, and monitors goal progression across their department.
-*   **Officer Workspace**: A clean, execution-focused hub. Officers update task progress, sign and forward files, track personal DPI trends, view upcoming deadlines, and unlock performance achievements/badges.
-
-### 🧠 AI Decision Center (Explainable & Predictable)
-*   **Delay Prediction Engine**: Uses an explainable formula taking into account file age, current holder backlog, leave statuses, and rework history to flag high-risk bottlenecks with plain-language rationales.
-*   **Digital Twin Simulator**: Allows administrators to run "what-if" scenarios (e.g., reassigning backlogs) to simulate and visualize backlog redistribution and DPI impact *before* executing changes.
-*   **Burnout Shield**: Automatically alerts team leaders if an officer's backlog, overdue tasks, and attendance scores exceed safety thresholds, proposing proactive, reversible file reassignments.
-
-### 🔒 Trust & Interoperability
-*   **Audit Vault**: Uses cryptographic SHA-256 chaining to record every action (creating goals, forwarding files, approving tasks), ensuring a tamper-evident record of administrative history.
-*   **SPARROW Sync**: Automatically compiles monthly performance summaries and exports them as standardized G2G (Government-to-Government) XML schema formats to sync with national appraisal systems.
+*   **Officer Workspace**: A clean, execution-focused hub. Officers update task progress, sign and forward files, manage incoming/outgoing workload assistance requests, and track personal DPI trends.
 
 ---
 
@@ -31,7 +45,7 @@ Insight360 (e-Office Pro) is a real-time, intelligence-driven performance monito
 | **Frontend Framework** | **Next.js 14 (App Router)** | Modern React framework with server-side rendering |
 | **Styling** | **Tailwind CSS & Lucide Icons** | Premium government-portal aesthetic & responsive design |
 | **Database ORM** | **Prisma ORM** | Schema management and type-safe database queries |
-| **Database** | **SQLite** | Local development and fast-seeding edge DB |
+| **Database** | **SQLite** | Fast local database compatible with serverless ephemeral hosting |
 | **Data Visualization** | **Recharts** | Fully responsive dashboard charts & data trends |
 | **UI Enhancements** | **Canvas Confetti & Next Themes** | Micro-interactions, achievements, and dark/light mode |
 
@@ -39,29 +53,15 @@ Insight360 (e-Office Pro) is a real-time, intelligence-driven performance monito
 
 ## 🧬 Core Formulas
 
-Insight360 calculates and visualizes key metrics using custom mathematical formulas executed server-side to guarantee consistency across dashboards.
-
 ### 1. Departmental / Individual Productivity Score ($DPI$)
 $$Productivity = (w_1 \cdot \text{CompletionRate}) + (w_2 \cdot \text{Timeliness}) + (w_3 \cdot \text{Quality}) + (w_4 \cdot \text{Attendance}) + (w_5 \cdot \text{Collaboration}) - (w_6 \cdot \text{DelayPenalty})$$
-> [!NOTE]
-> Weights ($w_1 - w_6$) are fully configurable per department to accommodate varying operational workloads.
 
 ### 2. Explainable Delay Risk Score
 $$DelayRisk = 0.35 \cdot \left(\frac{\text{FileAge}}{\text{SLA\_Category\_Days}}\right) + 0.20 \cdot \left(\frac{\text{HolderBacklog}}{\text{Dept\_Avg\_Backlog}}\right) + 0.20 \cdot (\text{OnLeaveFlag}) + 0.15 \cdot (\text{ReworkCount}) + 0.10 \cdot (\text{PriorityWeight})$$
-*   **Bands**: Low ($< 0.4$), Medium ($0.4 - 0.7$), High ($> 0.7$).
-*   **Explainability**: Every calculation is accompanied by a human-readable summary of the highest contributing factor (e.g., *"High backlog on current holder"*).
 
 ---
 
-## 🏁 Getting Started
-
-Follow these steps to run Insight360 locally on your machine.
-
-### 📋 Prerequisites
-*   [Node.js (v18.x or later)](https://nodejs.org/)
-*   npm (v9.x or later)
-
-### ⚙️ Installation & Setup
+## 🏁 Getting Started (Local Run)
 
 1.  **Clone the Repository**:
     ```bash
@@ -74,42 +74,25 @@ Follow these steps to run Insight360 locally on your machine.
     npm install
     ```
 
-3.  **Setup Database & Prisma Client**:
-    Create the SQLite database file and sync the Prisma schema:
+3.  **Setup Database & Seed Data**:
     ```bash
     npx prisma db push
+    node prisma/seed.js
     ```
 
-4.  **Seed Administrative Data**:
-    Seed the database with sample departments, ~20 mock user profiles, and interactive goals:
-    ```bash
-    npx prisma db seed
-    ```
-
-5.  **Run Development Server**:
+4.  **Run Development Server**:
     ```bash
     npm run dev
     ```
 
-6.  **Open in Browser**:
-    Navigate to [http://localhost:3000](http://localhost:3000) to view the application.
+5.  **Open in Browser**:
+    Navigate to [http://localhost:3000](http://localhost:3000) to view.
 
 ---
 
-## 🎤 Hackathon Pitch & Demo Guide
-
-If you are presenting this project, follow this 6-person demo workflow for a cohesive jury pitch:
-
-| Speaker | Role | Demo Focus | Catchphrase |
-| :--- | :--- | :--- | :--- |
-| **Speaker 1** | **Project Anchor** | Login Gateway (`/`) & Vision | *"We aren't replacing e-Office; we are giving it a brain to benchmark success."* |
-| **Speaker 2** | **UI/UX Architect** | Persona Switcher (`/officer`, `/teamlead`, `/secretary`) | *"One unified portal, three specialized personas, designed for high-speed operation."* |
-| **Speaker 3** | **AI & Modeling Lead** | AI Decision Center (`/ai-center`) & Twin Sliders | *"We do not use 'black-box' models. Our AI is explainable and computes on the edge."* |
-| **Speaker 4** | **Security & Trust** | Audit Vault (`/audit-vault`) Ledger Verification | *"Every notesheet approval is cryptographically anchored. We guarantee tamper-evident history."* |
-| **Speaker 5** | **Backend / Sync** | SPARROW Sync (`/sparrow-sync`) XML generation | *"Our database matches real government data schemes, making e-Office Pro plug-and-play."* |
-| **Speaker 6** | **QA & Deliverables** | Print Reports (`/reports`) PDF generation | *"From secure login to final appraisal report download, the entire loop is optimized."* |
-
----
-
-## 📄 License
-This project is licensed under the MIT License.
+## ☁️ Deploying to Render (Free Tier)
+This repository includes a [render.yaml](file:///d:/makethon%204.0/render.yaml) blueprint file. To deploy:
+1.  Go to the **Render Dashboard** > **Blueprints** > **New Blueprint Instance**.
+2.  Connect your repository (`LoopTroop1/Insight360`).
+3.  Add your SMTP secrets (`SMTP_USER`, `SMTP_PASS`) when prompted.
+4.  Render will automatically build and launch the platform using Node.js and SQLite.
